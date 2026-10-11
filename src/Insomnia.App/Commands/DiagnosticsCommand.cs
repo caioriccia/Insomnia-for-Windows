@@ -1,3 +1,4 @@
+using System.Text;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using Insomnia.Core.Abstractions;
@@ -59,6 +60,7 @@ public static class DiagnosticsCommand
     public static int Run(string[] args)
     {
         AttachParentConsoleIfNeeded();
+        var output = OpenOutput();
         try
         {
             var paths = Paths.FromEnvironment();
@@ -82,16 +84,43 @@ public static class DiagnosticsCommand
                 IsAppRunning = IsUiRunning,
                 ExecutablePath = Environment.ProcessPath,
             };
-            return Run(args, deps, Console.Out);
+            return Run(args, deps, output);
         }
         catch (Exception e)
         {
-            Console.Out.WriteLine($"diagnóstico interrompido: {e.Message}");
+            output.WriteLine($"diagnóstico interrompido: {e.Message}");
             return 1;
         }
         finally
         {
-            Console.Out.Flush();
+            output.Flush();
+        }
+    }
+
+    /// Saída redirecionada (`| Out-Host`): sem console próprio, o .NET escreveria na página
+    /// ANSI (1252) e o PowerShell decodifica na página do console (850 por padrão, ou 65001)
+    /// — "diagnóstico" virava "diagn¾stico". Escreve na página do console de quem chamou;
+    /// sem console, na OEM. No console direto, o Console.Out já escreve Unicode.
+    private static TextWriter OpenOutput()
+    {
+        if (!Console.IsOutputRedirected) return Console.Out;
+        try
+        {
+            var stream = Console.OpenStandardOutput(); // antes do AttachConsole: segura o pipe
+            var cp = 0u;
+            if (AttachConsole(AttachParentProcess))
+            {
+                cp = GetConsoleOutputCP();
+                FreeConsole();
+            }
+            if (cp == 0) cp = GetOEMCP();
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            Encoding encoding = cp == 65001 ? new UTF8Encoding(false) : Encoding.GetEncoding((int)cp);
+            return new StreamWriter(stream, encoding) { AutoFlush = true };
+        }
+        catch
+        {
+            return Console.Out;
         }
     }
 
@@ -483,6 +512,16 @@ public static class DiagnosticsCommand
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool AttachConsole(int dwProcessId);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool FreeConsole();
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetConsoleOutputCP();
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetOEMCP();
 
     // ---------- formatação ----------
 
