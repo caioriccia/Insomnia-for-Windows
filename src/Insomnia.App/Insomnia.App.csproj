@@ -8,6 +8,9 @@
     <AssemblyName>Insomnia</AssemblyName>
     <RootNamespace>Insomnia.App</RootNamespace>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <!-- Toda restauração (build, test) já inclui o alvo do instalador: sem isso, um
+         project.assets.json restaurado sem RID pode fazer o publish -r win-x64 falhar (NETSDK1047). -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>

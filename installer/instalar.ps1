@@ -52,7 +52,9 @@ if ($abertos.Count -gt 0) {
 
 Write-Host "==> Compilando ($projeto)"
 if (Test-Path $publicacao) { Remove-Item $publicacao -Recurse -Force }
-& dotnet publish $projeto -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o $publicacao
+& dotnet restore $projeto -r win-x64 --force
+if ($LASTEXITCODE -ne 0) { throw "dotnet restore falhou (código $LASTEXITCODE)" }
+& dotnet publish $projeto --no-restore -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o $publicacao
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish falhou (código $LASTEXITCODE)" }
 
 $publicado = Join-Path $publicacao 'Insomnia.exe'
