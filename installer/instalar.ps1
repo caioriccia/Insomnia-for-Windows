@@ -51,13 +51,13 @@ if ($abertos.Count -gt 0) {
 }
 
 Write-Host "==> Compilando ($projeto)"
-# Compila numa pasta própria e limpa: reaproveitar a saída dos builds de desenvolvimento
-# e de teste já deixou o publish com estado inconsistente (NETSDK1047, MSB3030).
+# Compila numa pasta própria e limpa, sem os servidores de build (nós do MSBuild e
+# VBCSCompiler) que ficam vivos entre execuções: com eles, uma pasta já usada antes
+# saía sem o Insomnia.Core.dll (MSB3030) mesmo depois de apagada — reproduzido e
+# confirmado em 11/10/2026; com --disable-build-servers, passa.
 $artefatos = Join-Path $env:LOCALAPPDATA 'InsomniaBuild\instalador'
 foreach ($p in @($publicacao, $artefatos)) { if (Test-Path $p) { Remove-Item $p -Recurse -Force } }
-# -m:1: com a saída unificada, o Core (sem RID) é construído duas vezes em paralelo na
-# mesma pasta e uma cópia some no meio da outra (MSB3030 intermitente). Em série, não.
-& dotnet publish $projeto -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true "-p:ArtifactsPath=$artefatos" -m:1 -o $publicacao
+& dotnet publish $projeto -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true "-p:ArtifactsPath=$artefatos" --disable-build-servers -o $publicacao
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish falhou (código $LASTEXITCODE)" }
 
 $publicado = Join-Path $publicacao 'Insomnia.exe'
