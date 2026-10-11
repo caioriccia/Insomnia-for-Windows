@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Lógica pura: nada de Windows aqui (TFM sem -windows). Adaptadores ficam em Insomnia.Windows. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Insomnia.Core</RootNamespace>
+  </PropertyGroup>
+
+</Project>

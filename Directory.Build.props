@@ -1,0 +1,25 @@
+<Project>
+  <!--
+    Configuração comum a todos os projetos de insomnia-windows/.
+
+    SAÍDA DE BUILD FORA DO ONEDRIVE: o repositório mora dentro do OneDrive, que
+    trava arquivos enquanto sincroniza e quebra o build no meio. Toda saída
+    (bin, obj, publish, restore) vai para %LOCALAPPDATA%\InsomniaBuild\artifacts.
+    Para mudar o destino, passe -p:ArtifactsPath=<pasta> na linha de comando
+    (propriedade global vence o valor abaixo). Sem LOCALAPPDATA (fora do
+    Windows), cai para artifacts/ ao lado deste arquivo, que o .gitignore cobre.
+  -->
+  <PropertyGroup>
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+    <ArtifactsPath Condition="'$(ArtifactsPath)' == '' and '$(LOCALAPPDATA)' != ''">$(LOCALAPPDATA)\InsomniaBuild\artifacts</ArtifactsPath>
+    <ArtifactsPath Condition="'$(ArtifactsPath)' == ''">$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+</Project>

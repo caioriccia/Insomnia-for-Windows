@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- App de bandeja (WinForms) e modos de linha de comando: backstop e diagnostico. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>Insomnia</AssemblyName>
+    <RootNamespace>Insomnia.App</RootNamespace>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Insomnia.Core\Insomnia.Core.csproj" />
+    <ProjectReference Include="..\Insomnia.Windows\Insomnia.Windows.csproj" />
+  </ItemGroup>
+
+</Project>

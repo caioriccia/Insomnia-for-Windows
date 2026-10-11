@@ -1,0 +1,15 @@
+# Saída de build. O Directory.Build.props já manda tudo para
+# %LOCALAPPDATA%\InsomniaBuild\artifacts (fora do OneDrive), mas um build com
+# outro ArtifactsPath ou uma ferramenta que ignore o props ainda pode criar
+# estas pastas aqui dentro.
+bin/
+obj/
+artifacts/
+publish/
+
+# Arquivos locais de IDE.
+*.user
+*.suo
+.vs/
+.idea/
+TestResults/
