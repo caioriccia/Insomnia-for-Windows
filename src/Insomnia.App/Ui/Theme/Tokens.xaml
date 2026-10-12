@@ -1,0 +1,63 @@
+<!--
+  Tokens do Insomnia (desenho-ui §3.3 e §5.5). Chaves CONGELADAS: as janelas e os estilos
+  usam só Insomnia.* por DynamicResource, nunca hex nem chave Fluent direto.
+
+  Cada pincel aponta, por DynamicResource, para a COR Fluent de mesmo nome do pincel do
+  §3.3 (TextFillColorPrimaryBrush ⇒ cor TextFillColorPrimary). Assim o pincel acompanha
+  claro/escuro e o acento do sistema ao vivo: o ThemeMode="System" do App.xaml troca o
+  dicionário Fluent e a cor por trás de cada pincel muda junto. Não dá para apelidar o
+  pincel Fluent diretamente: DynamicResource não aponta de uma chave para outra num
+  dicionário, só de uma propriedade para uma chave.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Texto -->
+    <SolidColorBrush x:Key="Insomnia.Text.Primary" Color="{DynamicResource TextFillColorPrimary}" />
+    <SolidColorBrush x:Key="Insomnia.Text.Secondary" Color="{DynamicResource TextFillColorSecondary}" />
+    <SolidColorBrush x:Key="Insomnia.Text.Tertiary" Color="{DynamicResource TextFillColorTertiary}" />
+    <SolidColorBrush x:Key="Insomnia.Text.Disabled" Color="{DynamicResource TextFillColorDisabled}" />
+
+    <!-- Acento. Exceção à regra acima: o Fluent não tem COR para AccentFillColorDefault nem
+         AccentTextFillColorPrimary (o tom muda com o tema: Dark1/Dark2 no claro, Light2/Light3
+         no escuro), só o pincel. Com o App rodando, App.SyncAccentAliases põe por cima destas
+         duas chaves o próprio pincel Fluent e o troca quando o tema muda; o valor daqui é só
+         a reserva (acento cru do sistema) para quem carregar o dicionário sem o App. -->
+    <SolidColorBrush x:Key="Insomnia.Accent" Color="{DynamicResource SystemAccentColor}" />
+    <SolidColorBrush x:Key="Insomnia.Accent.Text" Color="{DynamicResource SystemAccentColor}" />
+    <SolidColorBrush x:Key="Insomnia.OnAccent" Color="{DynamicResource TextOnAccentFillColorPrimary}" />
+
+    <!-- Superfícies -->
+    <SolidColorBrush x:Key="Insomnia.Surface.Solid" Color="{DynamicResource SolidBackgroundFillColorBase}" />
+    <SolidColorBrush x:Key="Insomnia.Surface.Layer" Color="{DynamicResource LayerFillColorDefault}" />
+    <SolidColorBrush x:Key="Insomnia.Card" Color="{DynamicResource CardBackgroundFillColorDefault}" />
+    <SolidColorBrush x:Key="Insomnia.Card.Stroke" Color="{DynamicResource CardStrokeColorDefault}" />
+
+    <!-- Controles -->
+    <SolidColorBrush x:Key="Insomnia.Control.Fill" Color="{DynamicResource ControlFillColorDefault}" />
+    <SolidColorBrush x:Key="Insomnia.Control.Hover" Color="{DynamicResource SubtleFillColorSecondary}" />
+    <SolidColorBrush x:Key="Insomnia.Control.Pressed" Color="{DynamicResource SubtleFillColorTertiary}" />
+    <SolidColorBrush x:Key="Insomnia.Control.Stroke" Color="{DynamicResource ControlStrokeColorDefault}" />
+    <SolidColorBrush x:Key="Insomnia.Control.StrongFill" Color="{DynamicResource ControlStrongFillColorDefault}" />
+    <SolidColorBrush x:Key="Insomnia.Divider" Color="{DynamicResource DividerStrokeColorDefault}" />
+    <SolidColorBrush x:Key="Insomnia.Flyout.Stroke" Color="{DynamicResource SurfaceStrokeColorFlyout}" />
+
+    <!-- Estado -->
+    <SolidColorBrush x:Key="Insomnia.Caution" Color="{DynamicResource SystemFillColorCaution}" />
+    <SolidColorBrush x:Key="Insomnia.Caution.Bg" Color="{DynamicResource SystemFillColorCautionBackground}" />
+    <SolidColorBrush x:Key="Insomnia.Critical" Color="{DynamicResource SystemFillColorCritical}" />
+    <SolidColorBrush x:Key="Insomnia.Critical.Bg" Color="{DynamicResource SystemFillColorCriticalBackground}" />
+    <SolidColorBrush x:Key="Insomnia.Success" Color="{DynamicResource SystemFillColorSuccess}" />
+
+    <!-- Raios (§3.2) -->
+    <CornerRadius x:Key="Insomnia.Radius.Control">4</CornerRadius>
+    <CornerRadius x:Key="Insomnia.Radius.Overlay">8</CornerRadius>
+    <CornerRadius x:Key="Insomnia.Radius.Pill">16</CornerRadius>
+
+    <!-- Fontes (§3.1). Ícones: Segoe Fluent Icons, com MDL2 no Windows 10 (mesmos códigos). -->
+    <FontFamily x:Key="Insomnia.Font.Icons">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+    <FontFamily x:Key="Insomnia.Font.Text">Segoe UI Variable Text, Segoe UI</FontFamily>
+    <FontFamily x:Key="Insomnia.Font.Display">Segoe UI Variable Display, Segoe UI</FontFamily>
+    <FontFamily x:Key="Insomnia.Font.Small">Segoe UI Variable Small, Segoe UI</FontFamily>
+
+</ResourceDictionary>

@@ -30,6 +30,14 @@ public class StatusMenuBuilderTests
     }
 
     [Fact]
+    public void Build_sem_config_nao_ganha_os_comandos_da_ui_nova()
+    {
+        // O menu velho (TrayController) não trata OpenPanel/StartDefault: só a sobrecarga com Config os insere.
+        foreach (var s in new[] { new StatusSnapshot { Now = Now }, new StatusSnapshot { Now = Now, Session = FourHours(TimeSpan.Zero) } })
+            Assert.DoesNotContain(StatusMenuBuilder.Build(s), l => l.Command is MenuCommand.OpenPanel or MenuCommand.StartDefault);
+    }
+
+    [Fact]
     public void Sessao_ativa_mostra_contagem_e_hora_do_fim()
     {
         var s = new StatusSnapshot { Now = Now, Session = FourHours(TimeSpan.FromMinutes(36).Add(TimeSpan.FromSeconds(15))) };

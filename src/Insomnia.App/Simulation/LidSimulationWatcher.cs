@@ -7,6 +7,7 @@
 // é lido duas vezes nem pela metade. O estado simulado vale até o próximo evento REAL de tampa,
 // que é repassado e apaga a simulação. Energia (AC/bateria) passa direto.
 #if DEBUG || INSOMNIA_LID_SIMULATION
+using System.IO;
 using Insomnia.Core.Abstractions;
 using PowerStatus = Insomnia.Core.Abstractions.PowerStatus;
 

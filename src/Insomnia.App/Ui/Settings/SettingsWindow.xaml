@@ -1,0 +1,67 @@
+<!--
+  Configurações do Insomnia (desenho-ui §3.7; maquete aprovada, cena 5): janela normal com a
+  barra de título do sistema, Mica (fallback sólido), 720×560 (mínimo 640×480). Navegação à
+  esquerda (220) com Insomnia.NavItem; à direita, a página aberta sobre a camada Surface.Layer
+  (canto superior esquerdo 8, traço Card.Stroke), padding 36/28, título Subtitle.
+  DataContext = SettingsModel; as páginas são criadas sob demanda pelo code-behind.
+-->
+<Window x:Class="Insomnia.App.Ui.Settings.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:model="clr-namespace:Insomnia.App.Ui.Model"
+        xmlns:theme="clr-namespace:Insomnia.App.Ui.Theme"
+        Title="Configurações do Insomnia"
+        Width="720" Height="560" MinWidth="640" MinHeight="480"
+        ShowInTaskbar="True" WindowStartupLocation="Manual"
+        Background="{DynamicResource Insomnia.Surface.Solid}"
+        Foreground="{DynamicResource Insomnia.Text.Primary}"
+        FontFamily="{DynamicResource Insomnia.Font.Text}" FontSize="14"
+        UseLayoutRounding="True">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <DockPanel Margin="8,4,8,8">
+            <!-- Nome do app: quadrado de acento 28 com o olho + "Insomnia" (maquete). -->
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="8,8,8,14">
+                <Border Width="28" Height="28" CornerRadius="6" Background="{DynamicResource Insomnia.Accent}">
+                    <TextBlock Text="{x:Static theme:Glyphs.Eye}" FontFamily="{DynamicResource Insomnia.Font.Icons}" FontSize="16"
+                               Foreground="{DynamicResource Insomnia.OnAccent}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <TextBlock Text="Insomnia" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <ListBox x:Name="Nav" ItemsSource="{x:Static model:SettingsModel.Nav}"
+                     SelectedValuePath="Page" SelectedValue="{Binding Current}"
+                     ItemContainerStyle="{DynamicResource Insomnia.NavItem}"
+                     Background="Transparent" BorderThickness="0" Padding="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     AutomationProperties.Name="Seções">
+                <ListBox.ItemTemplate>
+                    <DataTemplate DataType="{x:Type model:SettingsNavItem}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Glyph}" FontFamily="{DynamicResource Insomnia.Font.Icons}" FontSize="16"
+                                       Width="16" Margin="0,0,12,0" VerticalAlignment="Center" TextAlignment="Center" />
+                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
+
+        <Border Grid.Column="1" Background="{DynamicResource Insomnia.Surface.Layer}" CornerRadius="8,0,0,0"
+                BorderBrush="{DynamicResource Insomnia.Card.Stroke}" BorderThickness="1,1,0,0">
+            <ScrollViewer x:Name="PageScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          Focusable="False">
+                <StackPanel Margin="36,28,36,28">
+                    <TextBlock x:Name="PageTitle" FontFamily="{DynamicResource Insomnia.Font.Display}" FontSize="20"
+                               LineHeight="28" FontWeight="SemiBold" Margin="0,0,0,16" />
+                    <ContentControl x:Name="PageHost" Focusable="False" IsTabStop="False" />
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</Window>

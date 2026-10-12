@@ -1,17 +1,38 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- App de bandeja (WinForms) e modos de linha de comando: backstop e diagnostico. -->
+  <!-- App de bandeja e modos de linha de comando: backstop e diagnostico.
+       Laço de mensagens WPF (UI Windows 11, desenho-ui §2) convivendo com WinForms, que fica
+       onde é imbatível: NotifyIcon e a NativeWindow do Insomnia.Windows. -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
     <AssemblyName>Insomnia</AssemblyName>
     <RootNamespace>Insomnia.App</RootNamespace>
-    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <!-- O Main é o de Program.cs (quatro modos); o que o App.xaml gera fica sem uso. -->
+    <StartupObject>Insomnia.App.Program</StartupObject>
+    <!-- DPI PerMonitorV2 e supportedOS vêm do manifesto: o WPF não lê ApplicationHighDpiMode. -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets/Insomnia.ico</ApplicationIcon>
+    <!-- WPF0001: ThemeMode (tema Fluent ligado ao sistema) ainda é experimental no WPF 10.
+         WFO0003: o WinForms prefere o DPI pela API, mas o WPF só o lê do manifesto; o valor
+         (PerMonitorV2) é o mesmo para os dois. -->
+    <NoWarn>$(NoWarn);WPF0001;WFO0003</NoWarn>
     <!-- Toda restauração (build, test) já inclui o alvo do instalador: sem isso, um
          project.assets.json restaurado sem RID pode fazer o publish -r win-x64 falhar (NETSDK1047). -->
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
+
+  <!-- Sem os global usings implícitos do WinForms: com WPF no mesmo assembly, Application,
+       MessageBox, Color, Point e Timer ficariam ambíguos nos arquivos novos de Ui/. Os
+       arquivos WinForms declaram os seus usings explicitamente. O SDK do WPF também tira o
+       System.IO implícito (Path ambíguo com System.Windows.Shapes.Path): quem lê disco
+       declara `using System.IO;`. -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Insomnia.Core\Insomnia.Core.csproj" />

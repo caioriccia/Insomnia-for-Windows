@@ -1,0 +1,173 @@
+<!--
+  Painel que desce da pílula (desenho-ui §3.5, estados do §3.9; referência visual Painel.dc.html
+  e Iniciar.dc.html). Largura 360, padding 16 nos lados / 12 em cima / 8 embaixo, 12 entre blocos.
+  Ordem: cabeçalho · [descrição, só Iniciar] · mostrador · chips · [Outro… / campo + Iniciar] ·
+  faixa da tampa · avisos · cartão de estado · erro de comando · Segure para encerrar · alça.
+
+  O conteúdo tem SEMPRE o tamanho final (Root, num Canvas) e a janela é que cresce da pílula até
+  ele: a UiShell anima o tamanho da janela e o recorte arredondado do Root (ShellMath.ClipAt).
+  As partes que mudam com o estado (chips, linhas, avisos) são montadas no código.
+-->
+<win:FlyoutWindow x:Class="Insomnia.App.Ui.Shell.PanelWindow"
+                  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                  xmlns:win="clr-namespace:Insomnia.App.Ui.Windows"
+                  xmlns:shell="clr-namespace:Insomnia.App.Ui.Shell"
+                  xmlns:theme="clr-namespace:Insomnia.App.Ui.Theme"
+                  Title="Insomnia"
+                  Width="360" Height="460"
+                  FontFamily="{DynamicResource Insomnia.Font.Text}" FontSize="14"
+                  Foreground="{DynamicResource Insomnia.Text.Primary}">
+
+    <win:FlyoutWindow.Resources>
+        <!-- Caption 12/16 (sublinhas, rótulos). -->
+        <Style x:Key="Shell.Caption" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{DynamicResource Insomnia.Font.Small}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="LineHeight" Value="16" />
+            <Setter Property="Foreground" Value="{DynamicResource Insomnia.Text.Secondary}" />
+        </Style>
+        <!-- Glifo da fonte de ícones. -->
+        <Style x:Key="Shell.Glyph" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{DynamicResource Insomnia.Font.Icons}" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <!-- Link de ação dos avisos (Relançar Chrome, Parar de esperar…): texto em Accent.Text,
+             sublinhado no hover, foco de teclado normal. -->
+        <Style x:Key="Shell.Link" TargetType="Button">
+            <Setter Property="FontFamily" Value="{DynamicResource Insomnia.Font.Text}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Foreground" Value="{DynamicResource Insomnia.Accent.Text}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <TextBlock x:Name="Text" Text="{TemplateBinding Content}" TextWrapping="NoWrap" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Text" Property="TextDecorations" Value="Underline" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Text" Property="TextDecorations" Value="Underline" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Text" Property="Opacity" Value="0.8" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </win:FlyoutWindow.Resources>
+
+    <Canvas x:Name="Stage" ClipToBounds="True">
+        <Grid x:Name="Root" Width="360" Canvas.Left="0" Canvas.Top="0"
+              KeyboardNavigation.TabNavigation="Cycle">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <StackPanel x:Name="Body" Margin="16,12,16,0" KeyboardNavigation.TabNavigation="Local">
+
+                <!-- Cabeçalho (32): glifo 16 + Caption "Insomnia"; engrenagem à direita. -->
+                <Grid Height="32" KeyboardNavigation.TabIndex="6" KeyboardNavigation.TabNavigation="Local">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock x:Name="HeaderGlyph" Style="{StaticResource Shell.Glyph}"
+                                   Foreground="{DynamicResource Insomnia.Text.Secondary}"
+                                   Text="{x:Static theme:Glyphs.Eye}" />
+                        <TextBlock Style="{StaticResource Shell.Caption}" Margin="8,0,0,0" VerticalAlignment="Center"
+                                   Text="Insomnia" />
+                    </StackPanel>
+                    <Button x:Name="SettingsButton" Style="{DynamicResource Insomnia.IconButton}" HorizontalAlignment="Right"
+                            Content="{x:Static theme:Glyphs.Settings}" ToolTip="Configurações"
+                            AutomationProperties.Name="Configurações" />
+                </Grid>
+
+                <!-- Só no modo Iniciar. -->
+                <TextBlock x:Name="Description" Style="{StaticResource Shell.Caption}" Margin="0,12,0,0" TextWrapping="Wrap"
+                           Text="Mantém o notebook acordado até a hora marcada, mesmo com a tampa fechada." />
+
+                <!-- Mostrador: Title Large 40/52 + sublinha Caption. -->
+                <StackPanel Margin="0,12,0,0">
+                    <TextBlock x:Name="Headline" FontFamily="{DynamicResource Insomnia.Font.Display}" FontSize="40"
+                               LineHeight="52" FontWeight="SemiBold" Typography.NumeralAlignment="Tabular"
+                               Foreground="{DynamicResource Insomnia.Text.Primary}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                        <TextBlock x:Name="SublineGlyph" Style="{StaticResource Shell.Glyph}" FontSize="12" Margin="0,0,6,0"
+                                   Text="{x:Static theme:Glyphs.Clock}" />
+                        <TextBlock x:Name="Subline" Style="{StaticResource Shell.Caption}" Typography.NumeralAlignment="Tabular"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Chips: presets (Iniciar) ou +15 min/+1 h/+4 h/Outro… (Sessão). Gap 8. -->
+                <WrapPanel x:Name="Chips" Margin="0,12,-8,-8" KeyboardNavigation.TabIndex="1" KeyboardNavigation.TabNavigation="Local" />
+
+                <!-- Sessão: "Outro…" revela campo + Estender. -->
+                <Grid x:Name="ExtendRow" Margin="0,12,0,0" Visibility="Collapsed" KeyboardNavigation.TabIndex="2" KeyboardNavigation.TabNavigation="Local">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="ExtendField" Style="{DynamicResource Insomnia.TextField}" Tag="ex.: 30, 2h"
+                             AutomationProperties.Name="Estender por" />
+                    <Button x:Name="ExtendButton" Grid.Column="1" Margin="8,0,0,0" Style="{DynamicResource Insomnia.Chip}"
+                            Content="Estender" />
+                </Grid>
+
+                <!-- Iniciar: campo de largura total + botão primário (36, acento). -->
+                <TextBox x:Name="StartField" Margin="0,12,0,0" Style="{DynamicResource Insomnia.TextField}"
+                         Tag="Outra duração (ex.: 45, 1h30m, 3d)" AutomationProperties.Name="Outra duração"
+                         KeyboardNavigation.TabIndex="2" />
+                <Button x:Name="StartButton" Margin="0,12,0,0" Height="36" Style="{DynamicResource Insomnia.Chip.Selected}"
+                        HorizontalAlignment="Stretch" Content="Iniciar" KeyboardNavigation.TabIndex="3" />
+
+                <!-- Faixa da tampa fechada (44): acento a 12 % + Pause + título e detalhe. -->
+                <Grid x:Name="LidBanner" Margin="0,12,0,0" MinHeight="44" Visibility="Collapsed">
+                    <Border CornerRadius="{DynamicResource Insomnia.Radius.Control}" Background="{DynamicResource Insomnia.Accent}"
+                            Opacity="0.12" />
+                    <StackPanel Orientation="Horizontal" Margin="12,4" VerticalAlignment="Center">
+                        <TextBlock Style="{StaticResource Shell.Glyph}" Foreground="{DynamicResource Insomnia.Accent.Text}"
+                                   Text="{x:Static theme:Glyphs.Pause}" Margin="0,0,10,0" />
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock x:Name="LidTitle" FontWeight="SemiBold" LineHeight="18" />
+                            <TextBlock x:Name="LidDetail" Style="{StaticResource Shell.Caption}" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Avisos (InfoBar Caution), com link de ação. -->
+                <StackPanel x:Name="Notices" KeyboardNavigation.TabIndex="4" KeyboardNavigation.TabNavigation="Local" />
+
+                <!-- Cartão de estado: linhas de 36. -->
+                <Border x:Name="Card" Margin="0,12,0,0" Padding="12,0" BorderThickness="1"
+                        CornerRadius="{DynamicResource Insomnia.Radius.Control}"
+                        Background="{DynamicResource Insomnia.Card}" BorderBrush="{DynamicResource Insomnia.Card.Stroke}">
+                    <StackPanel x:Name="Rows" />
+                </Border>
+
+                <!-- Erro de comando (InfoBar Critical): some na próxima ação bem-sucedida. -->
+                <ContentControl x:Name="ErrorBar" Margin="0,12,0,0" Style="{DynamicResource Insomnia.InfoBar}"
+                                Tag="Critical" Visibility="Collapsed">
+                    <TextBlock x:Name="ErrorText" TextWrapping="Wrap" />
+                </ContentControl>
+
+                <!-- Rodapé da sessão. -->
+                <shell:HoldToEndControl x:Name="HoldToEnd" Margin="0,12,0,0" KeyboardNavigation.TabIndex="5" />
+            </StackPanel>
+
+            <!-- Alça: 36×4 centrada numa área de toque de 360×24; 8 do fundo. -->
+            <Border x:Name="Handle" Grid.Row="1" Height="24" Margin="0,12,0,8" Background="Transparent" Cursor="Hand">
+                <Border Style="{DynamicResource Insomnia.DragHandle}" />
+            </Border>
+        </Grid>
+    </Canvas>
+</win:FlyoutWindow>

@@ -4,6 +4,7 @@
 //   --diagnostico [...]        → DiagnosticsCommand.Run (frente diagnostico-instalador)
 //   --remover-backstop         → apaga a tarefa "Insomnia Backstop" (usado pelo desinstalador)
 // Qualquer outra coisa sai com 2 e uma linha no log (é WinExe: não há console para avisar).
+using System.Windows.Threading;
 using Insomnia.App.Commands;
 using Insomnia.App.Composition;
 using Insomnia.Core.Abstractions;
@@ -63,21 +64,35 @@ public static class Program
 
     private static FileLog NewLog() => new(Paths.FromEnvironment().LogFile);
 
+    /// UI: laço de mensagens do WPF (desenho-ui §2). O WinForms continua no mesmo thread STA
+    /// (NotifyIcon e a PowerEventsWindow do Insomnia.Windows): o
+    /// laço do WPF despacha as mensagens de qualquer janela do thread. DPI vem do manifesto.
     private static int RunUi()
     {
         using var instance = SingleInstance.TryClaim();
-        if (instance is null) return 0;   // outra instância abre o popover
+        if (instance is null) return 0;   // outra instância abre o painel
 
-        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
-        Application.EnableVisualStyles();
-        Application.SetCompatibleTextRenderingDefault(false);
-        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+        // Contexto de sincronização do Dispatcher desde já: as continuações dos await do
+        // AppHost.Start (antes de app.Run) voltam ao thread da UI.
+        SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
 
+        System.Windows.Forms.Application.EnableVisualStyles();
+        System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
+        System.Windows.Forms.Application.SetUnhandledExceptionMode(System.Windows.Forms.UnhandledExceptionMode.CatchException);
+
+        var app = new App();
         using var host = new AppHost();
-        Application.ThreadException += (_, e) => host.Log.Error($"erro na UI: {e.Exception.GetType().Name}: {e.Exception.Message}");
-        instance.OnShowRequested(host.ShowPopover);
+        // Erros nos callbacks do WinForms (NotifyIcon) e do WPF: ficam no log, o app segue.
+        System.Windows.Forms.Application.ThreadException += (_, e) => host.Log.Error($"erro na UI: {e.Exception.GetType().Name}: {e.Exception.Message}");
+        app.DispatcherUnhandledException += (_, e) =>
+        {
+            host.Log.Error($"erro na UI: {e.Exception.GetType().Name}: {e.Exception.Message}");
+            e.Handled = true;
+        };
+        host.Exited += app.Shutdown;
+        instance.OnShowRequested(host.ShowPanel);
         host.Start();
-        Application.Run(host);
+        app.Run();
         return 0;
     }
 

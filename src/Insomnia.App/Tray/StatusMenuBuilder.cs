@@ -5,6 +5,7 @@ using System.Collections.Immutable;
 using System.Globalization;
 using Insomnia.Core.Abstractions;
 using Insomnia.Core.Browser;
+using Insomnia.Core.Model;
 using Insomnia.Core.Time;
 // System.Windows.Forms (using global do WinForms) também tem PowerStatus.
 using PowerStatus = Insomnia.Core.Abstractions.PowerStatus;
@@ -40,7 +41,7 @@ public sealed record StatusSnapshot
 }
 
 public enum MenuLineKind { Info, Warning, Action, Separator }
-public enum MenuCommand { None, Relaunch, StopWaitingAudio, Settings, Quit }
+public enum MenuCommand { None, Relaunch, StopWaitingAudio, Settings, Quit, OpenPanel, StartDefault }
 
 /// Info e Warning saem desabilitados (só leitura); Action é clicável e leva Command/Argument.
 public sealed record MenuLine(MenuLineKind Kind, string Text, MenuCommand Command = MenuCommand.None, string? Argument = null)
@@ -53,6 +54,27 @@ public static class StatusMenuBuilder
     public const string SettingsLabel = "Configurações…";
     public const string QuitLabel = "Sair";
     public const string SimulationMarker = "⚠ Build com simulação de tampa (arquivo simulate-lid)";
+    public const string OpenPanelLabel = "Abrir painel";
+
+    /// "Iniciar sessão de 4h" (rótulo do chip do preset padrão).
+    public static string StartDefaultLabel(TimeSpan duration) => $"Iniciar sessão de {DurationFormat.Chip(duration)}";
+
+    /// Menu da UI nova (desenho-ui §3.6/§5.4): o mesmo de Build(s) e, antes de "Configurações…",
+    /// "Iniciar sessão de {padrão}" (só sem sessão; Argument = segundos) e "Abrir painel"
+    /// (sempre); "Sair" fica separado do resto. Build(s) segue igual para o menu velho.
+    public static IReadOnlyList<MenuLine> Build(StatusSnapshot s, Config config)
+    {
+        var lines = Build(s).ToList();
+        var settings = lines.FindIndex(l => l.Command == MenuCommand.Settings);
+        var extra = new List<MenuLine>();
+        if (s.Session is null)
+            extra.Add(new(MenuLineKind.Action, StartDefaultLabel(TimeSpan.FromSeconds(config.DefaultPreset)), MenuCommand.StartDefault,
+                config.DefaultPreset.ToString(CultureInfo.InvariantCulture)));
+        extra.Add(new(MenuLineKind.Action, OpenPanelLabel, MenuCommand.OpenPanel));
+        lines.InsertRange(settings, extra);
+        lines.Insert(lines.FindIndex(l => l.Command == MenuCommand.Quit), MenuLine.Separator);
+        return lines;
+    }
 
     public static IReadOnlyList<MenuLine> Build(StatusSnapshot s)
     {

@@ -1,118 +1,103 @@
-// Bandeja (desenho §9): NotifyIcon com ícone redesenhado a cada segundo (alinhado à virada
-// do segundo, parado enquanto a contagem está pausada), tooltip com a contagem, popover no
-// clique esquerdo e menu de contexto no direito. O menu é montado pelo StatusMenuBuilder a
-// partir do último retrato; ao abrir, dispara uma leitura nova (navegadores, Wi-Fi, diário)
-// e se redesenha quando ela volta — como o original, pode estar uma abertura atrasado.
+// Bandeja (desenho-ui §3.6, §3.8 e §4): NotifyIcon do WinForms — imbatível para isso — sem
+// ContextMenuStrip. Clique esquerdo abre/fecha o painel (IShell); clique direito abre o menu
+// próprio (MenuFlyoutWindow, Acrylic) no monitor do cursor, montado pelo StatusMenuBuilder a
+// partir do último retrato. Ao abrir, dispara uma leitura nova (navegadores, Wi-Fi, diário) e
+// se redesenha quando o Changed dela chega — como o original, pode estar uma abertura atrasado.
+//
+// Ícone: glifo monocromático pelo tom da pílula (TrayIconStates), redesenhado no Changed e no
+// Tick do AppHost (o relógio de 1 Hz mora lá; Tick cala com a contagem pausada e Changed
+// cobre a virada para pausa). Tooltip com a contagem (TrayTexts.Tooltip).
+//
+// Notificações: o TrayNotifier continua mostrando balões por este ícone, pelo Control oculto
+// criado aqui (o handle dele é o invoker de qualquer thread). O notificador é do AppHost e não
+// está no ISessionFacade: em produção o host é o AppHost; fora dele (testes), só o log.
 //
 // Tudo aqui roda no thread da UI.
 using Insomnia.App.Composition;
-using Insomnia.App.Settings;
-using Insomnia.Core.Time;
+using Insomnia.App.Ui;
+using Insomnia.App.Ui.Menu;
+using Insomnia.App.Ui.Model;
+using Insomnia.App.Ui.Native;
 
 namespace Insomnia.App.Tray;
 
 public sealed class TrayController : IDisposable
 {
-    private static readonly Color WarningColor = Color.FromArgb(0xC8, 0x6A, 0x00);
+    // NotifyIcon.Text aceita no máximo 127 caracteres (passar disso lança).
+    private const int TooltipMax = 127;
+    private const string StartFailedTitle = "Sessão não iniciada";
 
-    private readonly AppHost _host;
-    private readonly NotifyIcon _icon;
-    private readonly ContextMenuStrip _menu = new() { ShowImageMargin = false };
+    private readonly ISessionFacade _host;
+    private readonly IShell _shell;
+    private readonly ISettingsHost _settings;
+    private readonly System.Windows.Forms.NotifyIcon _icon;
+    private readonly System.Windows.Forms.Control _invoker = new();
     private readonly TrayIconRenderer _renderer = new();
-    private readonly System.Windows.Forms.Timer _tick = new();
-    private PopoverForm? _popover;
-    private SettingsForm? _settings;
+    private MenuFlyoutWindow? _menu;
     private bool _disposed;
 
-    public TrayController(AppHost host)
+    public TrayController(ISessionFacade host, IShell shell, ISettingsHost settings)
     {
         _host = host;
-        _ = _menu.Handle; // invoker das notificações (BeginInvoke de qualquer thread)
-        _icon = new NotifyIcon { ContextMenuStrip = _menu, Text = TrayTexts.IdleTooltip, Visible = false };
-        _icon.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) TogglePopover(); };
-        _menu.Opening += (_, _) =>
-        {
-            RebuildMenu();
-            _host.RefreshStatusInBackground();
-        };
-        _tick.Tick += (_, _) => OnTick();
+        _shell = shell;
+        _settings = settings;
+        _ = _invoker.Handle; // invoker das notificações (BeginInvoke de qualquer thread)
+        _icon = new System.Windows.Forms.NotifyIcon { Text = TrayTexts.IdleTooltip, Visible = false };
+        _icon.MouseClick += OnIconClick;
+        _host.Changed += OnChanged;
+        _host.Tick += OnTick;
     }
 
     public void Show()
     {
-        UpdateIcon(force: true);
+        if (_disposed) return;
+        UpdateIcon();
         _icon.Visible = true;
-        _host.Notifier.Attach(_icon, _menu);
-        ArmTick();
+        if (_host is AppHost app) app.Notifier.Attach(_icon, _invoker);
     }
 
-    /// Algo mudou (sessão, config, rede, leitura de estado): redesenha o que estiver visível.
-    public void Refresh()
+    private void OnIconClick(object? sender, System.Windows.Forms.MouseEventArgs e)
     {
         if (_disposed) return;
-        UpdateIcon(force: true);
-        if (_menu.Visible) RebuildMenu();
-        if (_popover is { Visible: true } p) p.RefreshState(_host.Snapshot());
+        switch (e.Button)
+        {
+            case System.Windows.Forms.MouseButtons.Left:
+                if (_menu is { IsVisible: true } menu) menu.Hide();
+                _shell.TogglePanel();
+                break;
+            case System.Windows.Forms.MouseButtons.Right:
+                ShowMenu();
+                break;
+        }
     }
 
-    /// Abre o popover (também usado quando uma segunda instância é aberta).
-    public void ShowPopover()
+    // ------------------------------------------------------------------ redesenho
+
+    private void OnChanged() => Redraw();
+
+    private void OnTick() => Redraw();
+
+    private void Redraw()
     {
         if (_disposed) return;
-        _popover ??= new PopoverForm(_host);
-        _popover.RefreshState(_host.Snapshot());
-        _popover.ShowNear(Cursor.Position);
+        UpdateIcon();
+        if (_menu is { IsVisible: true } menu)
+        {
+            try { menu.SetRows(BuildRows()); }
+            catch (Exception ex) { _host.Log.Error($"menu da bandeja não redesenhado: {ex.Message}"); }
+        }
     }
 
-    public void ShowSettings()
+    private void UpdateIcon()
     {
-        if (_disposed) return;
-        _popover?.Hide();
-        if (_settings is null || _settings.IsDisposed)
-            _settings = new SettingsForm(_host.Config, _host.AutoStart, _host.Wifi, _host.Inspector,
-                _host.Paths.ConfigFile, AppHost.ExecutablePath, _host.Log);
-        _settings.ShowAndActivate();
-    }
-
-    private void TogglePopover()
-    {
-        if (_popover is { Visible: true } p) { p.Hide(); return; }
-        ShowPopover();
-    }
-
-    // ------------------------------------------------------------------ ícone
-
-    private void ArmTick()
-    {
-        // Próxima virada de segundo (+5 ms de folga), para o texto mudar junto com o relógio.
-        var ms = 1000 - DateTime.Now.Millisecond + 5;
-        _tick.Interval = Math.Clamp(ms, 50, 1005);
-        _tick.Start();
-    }
-
-    private void OnTick()
-    {
-        _tick.Stop();
-        if (_disposed) return;
-        UpdateIcon(force: false);
-        if (_popover is { Visible: true } p) p.Tick(_host.Snapshot());
-        ArmTick();
-    }
-
-    private void UpdateIcon(bool force)
-    {
-        var manager = _host.Manager;
-        var session = manager.Current;
-        var paused = manager.CountdownPaused;
-        if (!force && paused) return;   // tampa fechada: nada a redesenhar a cada segundo
-        var now = _host.Clock.Now;
-        var compact = session is null ? null : SessionMath.FormatCompact(session.Remaining(now));
         try
         {
-            var size = SystemInformation.SmallIconSize.Width;
-            var icon = _renderer.Update(compact, paused, size);
+            var s = _host.Snapshot();
+            var size = System.Windows.Forms.SystemInformation.SmallIconSize.Width;
+            var icon = _renderer.Update(TrayIconStates.Of(s), size, Dwm.SystemUsesLightTaskbar);
             if (!ReferenceEquals(_icon.Icon, icon)) _icon.Icon = icon;
-            _icon.Text = TrayTexts.Tooltip(session, now, paused);
+            var tooltip = TrayTexts.Tooltip(s.Session, s.Now, s.CountdownPaused);
+            _icon.Text = tooltip.Length <= TooltipMax ? tooltip : tooltip[..TooltipMax];
         }
         catch (Exception ex)
         {
@@ -122,66 +107,84 @@ public sealed class TrayController : IDisposable
 
     // ------------------------------------------------------------------ menu
 
-    private void RebuildMenu()
+    private IReadOnlyList<MenuRow> BuildRows() =>
+        MenuPresenter.From(StatusMenuBuilder.Build(_host.Snapshot(), _host.Config.Current));
+
+    private void ShowMenu()
     {
-        _menu.SuspendLayout();
         try
         {
-            foreach (ToolStripItem old in _menu.Items.Cast<ToolStripItem>().ToList()) old.Dispose();
-            _menu.Items.Clear();
-            foreach (var line in StatusMenuBuilder.Build(_host.Snapshot()))
-                _menu.Items.Add(ToItem(line));
+            if (_menu is null)
+            {
+                _menu = new MenuFlyoutWindow();
+                _menu.CommandInvoked += Execute;
+            }
+            var cursor = System.Windows.Forms.Cursor.Position;   // pixels físicos (PerMonitorV2)
+            _menu.ShowAt(BuildRows(), cursor.X, cursor.Y);
         }
-        finally { _menu.ResumeLayout(); }
+        catch (Exception ex)
+        {
+            _host.Log.Error($"menu da bandeja não aberto: {ex.Message}");
+        }
+        _host.RefreshStatusInBackground();
     }
 
-    private ToolStripItem ToItem(MenuLine line)
+    private void Execute(MenuRow row)
     {
-        switch (line.Kind)
+        if (_disposed) return;
+        switch (row.Command)
         {
-            case MenuLineKind.Separator:
-                return new ToolStripSeparator();
-            case MenuLineKind.Info:
-                return new ToolStripMenuItem(line.Text) { Enabled = false };
-            case MenuLineKind.Warning:
-                return new ToolStripMenuItem(line.Text) { ForeColor = WarningColor };
-            default:
-                var item = new ToolStripMenuItem(line.Text);
-                item.Click += (_, _) => Execute(line);
-                return item;
-        }
-    }
-
-    private void Execute(MenuLine line)
-    {
-        switch (line.Command)
-        {
+            case MenuCommand.OpenPanel:
+                _shell.ShowPanel();
+                break;
+            case MenuCommand.StartDefault:
+                _ = StartDefaultAsync(row.Argument);
+                break;
             case MenuCommand.Settings:
-                ShowSettings();
+                _settings.ShowSettings();
                 break;
             case MenuCommand.Quit:
                 _ = _host.QuitAsync();
                 break;
-            case MenuCommand.Relaunch when line.Argument is { } kind:
+            case MenuCommand.Relaunch when row.Argument is { } kind:
                 _ = _host.RelaunchBrowserAsync(kind);
                 break;
-            case MenuCommand.StopWaitingAudio when line.Argument is { } deviceId:
+            case MenuCommand.StopWaitingAudio when row.Argument is { } deviceId:
                 _ = _host.StopWaitingAudioAsync(deviceId);
                 break;
         }
+    }
+
+    /// "Iniciar sessão de {padrão}": recusa (mensagem pt-BR) ou falha vira notificação.
+    private async Task StartDefaultAsync(string? argument)
+    {
+        string? problem;
+        try
+        {
+            var duration = MenuLayout.StartDuration(argument, _host.Config.Current.DefaultPreset);
+            problem = await _host.StartSessionAsync(duration);
+        }
+        catch (Exception ex)
+        {
+            _host.Log.Error($"sessão do menu não iniciada: {ex.Message}");
+            problem = ex.Message;
+        }
+        if (problem is null) return;
+        if (_host is AppHost app) app.Notifier.Post(StartFailedTitle, problem);
+        else _host.Log.Info($"notificação: {StartFailedTitle} — {problem}");
     }
 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
-        _tick.Stop();
-        _tick.Dispose();
+        _host.Changed -= OnChanged;
+        _host.Tick -= OnTick;
+        if (_host is AppHost app) app.Notifier.Detach();
+        _menu?.Hide();
         _icon.Visible = false;
         _icon.Dispose();
-        _popover?.Dispose();
-        _settings?.Dispose();
-        _menu.Dispose();
+        _invoker.Dispose();
         _renderer.Dispose();
     }
 }

@@ -1,0 +1,19 @@
+<!--
+  Aplicação WPF (desenho-ui §2): laço de mensagens da UI. ThemeMode="System" traz o tema
+  Fluent do .NET (claro/escuro e acento do sistema, ao vivo). Sai só por Shutdown explícito:
+  o app vive na bandeja, sem janela principal (AppHost.Exited ⇒ Program chama Shutdown).
+-->
+<Application x:Class="Insomnia.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ThemeMode="System"
+             ShutdownMode="OnExplicitShutdown">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Ui/Theme/Tokens.xaml" />
+                <ResourceDictionary Source="Ui/Controls/Controls.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

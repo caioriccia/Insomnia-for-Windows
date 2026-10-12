@@ -1,0 +1,141 @@
+<!--
+  Estilos das páginas de Configurações (desenho-ui §3.7; medidas da maquete aprovada). Mesclado
+  por cada página e pelo AppListEditor. NÃO mescla Tokens.xaml nem Controls.xaml: as chaves
+  Insomnia.* vêm do App.xaml, e uma cópia local dos tokens sombrearia o acento que o App
+  sincroniza com o tema (App.SyncAccentAliases). Por isso as referências a Insomnia.* aqui são
+  todas DynamicResource.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:local="clr-namespace:Insomnia.App.Ui.Settings">
+
+    <local:OnOffTextConverter x:Key="Settings.OnOff" />
+    <local:EmptyToCollapsedConverter x:Key="Settings.EmptyToCollapsed" />
+    <BooleanToVisibilityConverter x:Key="Settings.BoolToVisibility" />
+
+    <!-- Cartão: glifo 20 | título Body + descrição Caption | controle; corpo opcional embaixo,
+         alinhado ao texto (glifo 20 + gap 16). Cartões empilhados com 4 entre si. -->
+    <Style TargetType="local:SettingRow">
+        <Setter Property="Margin" Value="0,0,0,4" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="local:SettingRow">
+                    <ContentControl Style="{DynamicResource Insomnia.SettingCard}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="Glyph" Text="{TemplateBinding Glyph}" Width="20" Margin="0,0,16,0"
+                                           FontFamily="{DynamicResource Insomnia.Font.Icons}" FontSize="20"
+                                           VerticalAlignment="Center" TextAlignment="Center" />
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{TemplateBinding Title}" FontSize="14" LineHeight="20" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="Description" Text="{TemplateBinding Description}"
+                                               FontFamily="{DynamicResource Insomnia.Font.Small}" FontSize="12" LineHeight="16"
+                                               TextWrapping="Wrap" Foreground="{DynamicResource Insomnia.Text.Secondary}" />
+                                </StackPanel>
+                                <ContentPresenter Grid.Column="2" Margin="16,0,0,0" VerticalAlignment="Center" />
+                            </Grid>
+                            <ContentPresenter x:Name="BodyHost" Grid.Row="1" Margin="36,10,0,2" Content="{TemplateBinding Body}" />
+                        </Grid>
+                    </ContentControl>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Glyph" Value="">
+                            <Setter TargetName="Glyph" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="BodyHost" Property="Margin" Value="0,10,0,2" />
+                        </Trigger>
+                        <Trigger Property="Description" Value="">
+                            <Setter TargetName="Description" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <Trigger Property="Description" Value="{x:Null}">
+                            <Setter TargetName="Description" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <Trigger Property="Body" Value="{x:Null}">
+                            <Setter TargetName="BodyHost" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- "Ativado" / "Desativado" à esquerda do toggle (Body, Text.Primary). -->
+    <Style x:Key="Settings.ToggleLabel" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Margin" Value="0,0,12,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- Nota de rodapé da página (Caption, Text.Secondary). -->
+    <Style x:Key="Settings.Note" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource Insomnia.Font.Small}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="LineHeight" Value="16" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="Margin" Value="2,4,2,4" />
+        <Setter Property="Foreground" Value="{DynamicResource Insomnia.Text.Secondary}" />
+    </Style>
+
+    <!-- Mensagem de erro (Caption, Critical); some quando vazia. -->
+    <Style x:Key="Settings.Error" TargetType="TextBlock" BasedOn="{StaticResource Settings.Note}">
+        <Setter Property="Foreground" Value="{DynamicResource Insomnia.Critical}" />
+        <Setter Property="Visibility" Value="{Binding Text, RelativeSource={RelativeSource Self}, Converter={StaticResource Settings.EmptyToCollapsed}}" />
+    </Style>
+
+    <!-- Chip removível (maquete: 28 alto, padding 10/6, raio 4, Control.Fill/Control.Stroke, 13). -->
+    <Style x:Key="Settings.TagChip" TargetType="Border">
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Padding" Value="10,0,4,0" />
+        <Setter Property="Margin" Value="0,0,8,8" />
+        <Setter Property="CornerRadius" Value="{DynamicResource Insomnia.Radius.Control}" />
+        <Setter Property="Background" Value="{DynamicResource Insomnia.Control.Fill}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Insomnia.Control.Stroke}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="TextElement.FontSize" Value="13" />
+    </Style>
+
+    <!-- O × do chip: glifo 10 em Text.Secondary, alvo 20×20, hover Control.Hover. -->
+    <Style x:Key="Settings.TagRemove" TargetType="Button">
+        <Setter Property="Width" Value="20" />
+        <Setter Property="Height" Value="20" />
+        <Setter Property="Margin" Value="6,0,0,0" />
+        <Setter Property="FontFamily" Value="{DynamicResource Insomnia.Font.Icons}" />
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="Foreground" Value="{DynamicResource Insomnia.Text.Secondary}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="ToolTip" Value="Remover" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Base" CornerRadius="2" Background="{TemplateBinding Background}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Base" Property="Background" Value="{DynamicResource Insomnia.Control.Hover}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Base" Property="Background" Value="{DynamicResource Insomnia.Control.Pressed}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource Insomnia.Text.Disabled}" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

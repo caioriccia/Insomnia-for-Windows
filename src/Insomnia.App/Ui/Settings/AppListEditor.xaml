@@ -1,0 +1,50 @@
+<!--
+  Lista de executáveis das Configurações (lista de congelados, lista de agentes): chips
+  removíveis, "Adicionar app em execução" (ComboBox preenchido na hora de abrir) e um campo para
+  digitar um nome que não está aberto agora. Quem grava é a página, pelos eventos.
+-->
+<UserControl x:Class="Insomnia.App.Ui.Settings.AppListEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:theme="clr-namespace:Insomnia.App.Ui.Theme"
+             Focusable="False">
+    <UserControl.Resources>
+        <ResourceDictionary Source="/Insomnia;component/Ui/Settings/SettingsStyles.xaml" />
+    </UserControl.Resources>
+
+    <StackPanel>
+        <ItemsControl x:Name="Chips" Focusable="False">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Style="{StaticResource Settings.TagChip}">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding}" VerticalAlignment="Center" />
+                            <Button Style="{StaticResource Settings.TagRemove}" Content="{x:Static theme:Glyphs.Dismiss}"
+                                    Tag="{Binding}" Click="OnRemoveClick"
+                                    AutomationProperties.Name="{Binding StringFormat='Remover {0}'}" />
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <WrapPanel>
+            <!-- ComboBox sem seleção mostra o texto de convite por baixo (o WPF não tem
+                 placeholder em ComboBox não editável); depois de escolher, volta a vazio. -->
+            <Grid Width="240" Margin="0,0,8,0">
+                <ComboBox x:Name="Running" MinHeight="32" DropDownOpened="OnRunningOpened" SelectionChanged="OnRunningPicked"
+                          AutomationProperties.Name="Adicionar app em execução" />
+                <TextBlock x:Name="RunningHint" Text="Adicionar app em execução" Margin="11,0,32,0" VerticalAlignment="Center"
+                           IsHitTestVisible="False" Foreground="{DynamicResource Insomnia.Text.Secondary}" TextTrimming="CharacterEllipsis" />
+            </Grid>
+            <TextBox x:Name="Typed" Style="{DynamicResource Insomnia.TextField}" Width="220"
+                     Tag="ou digite o nome e Enter" KeyDown="OnTypedKeyDown"
+                     AutomationProperties.Name="Nome do executável" />
+        </WrapPanel>
+    </StackPanel>
+</UserControl>

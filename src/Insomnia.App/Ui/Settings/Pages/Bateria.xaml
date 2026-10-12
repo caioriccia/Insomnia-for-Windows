@@ -1,0 +1,32 @@
+<!--
+  Página Bateria (desenho-ui §3.7): os dois pisos, em passos de 5 %. As opções vêm do
+  code-behind (FloorOption); a normalização entre os dois (fim sempre abaixo da Economia) é do
+  Config, via SettingsModel. DataContext = SettingsModel.
+-->
+<UserControl x:Class="Insomnia.App.Ui.Settings.Pages.BateriaPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:s="clr-namespace:Insomnia.App.Ui.Settings"
+             xmlns:theme="clr-namespace:Insomnia.App.Ui.Theme"
+             Focusable="False">
+    <UserControl.Resources>
+        <ResourceDictionary Source="/Insomnia;component/Ui/Settings/SettingsStyles.xaml" />
+    </UserControl.Resources>
+
+    <StackPanel>
+        <s:SettingRow Glyph="{x:Static theme:Glyphs.Battery}" Title="Ligar a Economia de energia abaixo de"
+                      Description="Durante a sessão, na bateria">
+            <ComboBox x:Name="LowFloor" Width="120" MinHeight="32" DisplayMemberPath="Text" SelectedValuePath="Value"
+                      SelectedValue="{Binding LowPowerFloor}" AutomationProperties.Name="Ligar a Economia de energia abaixo de" />
+        </s:SettingRow>
+
+        <s:SettingRow Glyph="{x:Static theme:Glyphs.Power}" Title="Encerrar a sessão abaixo de"
+                      Description="&quot;Nunca&quot; desliga o fim por bateria">
+            <ComboBox x:Name="EndFloor" Width="120" MinHeight="32" DisplayMemberPath="Text" SelectedValuePath="Value"
+                      SelectedValue="{Binding EndFloor}" AutomationProperties.Name="Encerrar a sessão abaixo de" />
+        </s:SettingRow>
+
+        <TextBlock Style="{StaticResource Settings.Note}"
+                   Text="O piso de fim fica sempre abaixo do piso da Economia de energia: mudar um pode ajustar o outro." />
+    </StackPanel>
+</UserControl>

@@ -1,6 +1,7 @@
 // INotifier real: balão do NotifyIcon, que o Windows 11 mostra como toast (desenho §7).
 // Toda notificação também vai para o log. Antes de a bandeja existir (ou depois que sumiu),
 // fica só o log. Pode ser chamado de qualquer thread: o balão é mostrado no thread da UI.
+using System.Windows.Forms;
 using Insomnia.Core.Abstractions;
 
 namespace Insomnia.App.Notifications;

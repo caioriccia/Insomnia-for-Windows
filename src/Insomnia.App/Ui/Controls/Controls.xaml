@@ -1,0 +1,521 @@
+<!--
+  Estilos dos controles do Insomnia (desenho-ui §5.6, medidas do §3). Mesclado pelo App.xaml
+  DEPOIS de Ui/Theme/Tokens.xaml. Chaves CONGELADAS: Insomnia.ToggleSwitch, Insomnia.Chip,
+  Insomnia.Chip.Selected, Insomnia.IconButton, Insomnia.InfoBar, Insomnia.NavItem,
+  Insomnia.SettingCard, Insomnia.DragHandle, Insomnia.TextField.
+
+  Regras deste arquivo:
+  - Cor só por DynamicResource às chaves Insomnia.* do Tokens.xaml (nenhum hex, nenhuma chave
+    Fluent direta): claro/escuro e acento do sistema mudam ao vivo. "Transparent" é a única cor
+    literal, e só onde o fundo precisa receber clique sem pintar nada.
+  - Nenhum estilo é BasedOn do estilo Fluent do .NET: os templates são completos, para o
+    dicionário carregar mesmo onde o tema Fluent ainda não foi aplicado.
+  - Hover = camada "Overlay" por cima do fundo, com opacidade animada em 83 ms (Motion.Fast);
+    pressionado troca a camada para Control.Pressed. ControlPreview.State força os mesmos
+    visuais para a GalleryWindow (no app ninguém liga essa propriedade).
+  - Nada aqui depende de Ui/Model: InfoBar compara o Tag pelo NOME (Caution / Critical), que
+    serve tanto para o enum NoticeKind quanto para string.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ctl="clr-namespace:Insomnia.App.Ui.Controls"
+                    xmlns:theme="clr-namespace:Insomnia.App.Ui.Theme">
+
+    <!-- Animações de hover (Motion.Fast = 83 ms), compartilhadas pelos templates com Overlay. -->
+    <Storyboard x:Key="Insomnia.Overlay.In">
+        <DoubleAnimation Storyboard.TargetName="Overlay" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.083" />
+    </Storyboard>
+    <Storyboard x:Key="Insomnia.Overlay.Out">
+        <DoubleAnimation Storyboard.TargetName="Overlay" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.083" />
+    </Storyboard>
+
+    <!-- ToggleSwitch sobre CheckBox: trilho 40×20 raio 10; bolinha 12 → 14 no hover (83 ms). -->
+    <Style x:Key="Insomnia.ToggleSwitch" TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{DynamicResource Insomnia.Text.Primary}" />
+        <Setter Property="FontFamily" Value="{DynamicResource Insomnia.Font.Text}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Grid Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border x:Name="Track" Width="40" Height="20" CornerRadius="10" BorderThickness="1"
+                                VerticalAlignment="Center" Background="Transparent"
+                                BorderBrush="{DynamicResource Insomnia.Control.StrongFill}">
+                            <Ellipse x:Name="Knob" Width="12" Height="12" Margin="3,0" HorizontalAlignment="Left"
+                                     VerticalAlignment="Center" Fill="{DynamicResource Insomnia.Control.StrongFill}" />
+                        </Border>
+                        <ContentPresenter x:Name="Label" Grid.Column="1" Margin="12,0,0,0" RecognizesAccessKey="True"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Content" Value="{x:Null}">
+                            <Setter TargetName="Label" Property="Margin" Value="0" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Track" Property="Background" Value="{DynamicResource Insomnia.Accent}" />
+                            <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource Insomnia.Accent}" />
+                            <Setter TargetName="Knob" Property="Fill" Value="{DynamicResource Insomnia.OnAccent}" />
+                            <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Knob" Storyboard.TargetProperty="Width" To="14" Duration="0:0:0.083" />
+                                        <DoubleAnimation Storyboard.TargetName="Knob" Storyboard.TargetProperty="Height" To="14" Duration="0:0:0.083" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Knob" Storyboard.TargetProperty="Width" To="12" Duration="0:0:0.083" />
+                                        <DoubleAnimation Storyboard.TargetName="Knob" Storyboard.TargetProperty="Height" To="12" Duration="0:0:0.083" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <!-- Pressionado: a bolinha estica na horizontal, como no Windows 11. -->
+                        <Trigger Property="IsPressed" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Knob" Storyboard.TargetProperty="Width" To="17" Duration="0:0:0.083" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Knob" Storyboard.TargetProperty="Width" To="14" Duration="0:0:0.083" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="ctl:ControlPreview.State" Value="Hover">
+                            <Setter TargetName="Knob" Property="Width" Value="14" />
+                            <Setter TargetName="Knob" Property="Height" Value="14" />
+                        </Trigger>
+                        <Trigger Property="ctl:ControlPreview.State" Value="Pressed">
+                            <Setter TargetName="Knob" Property="Width" Value="17" />
+                            <Setter TargetName="Knob" Property="Height" Value="14" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource Insomnia.Text.Disabled}" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                            <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource Insomnia.Text.Disabled}" />
+                            <Setter TargetName="Knob" Property="Fill" Value="{DynamicResource Insomnia.Text.Disabled}" />
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsEnabled" Value="False" />
+                                <Condition Property="IsChecked" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Track" Property="Background" Value="{DynamicResource Insomnia.Text.Disabled}" />
+                            <Setter TargetName="Track" Property="BorderBrush" Value="Transparent" />
+                            <Setter TargetName="Knob" Property="Fill" Value="{DynamicResource Insomnia.OnAccent}" />
+                        </MultiTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Chip (§3.5): 32 de altura, padding 12/0, raio 4, Body Strong, Control.Fill/Control.Stroke. -->
+    <Style x:Key="Insomnia.Chip" TargetType="Button">
+        <Setter Property="Height" Value="32" />
+        <Setter Property="MinWidth" Value="32" />
+        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="FontFamily" Value="{DynamicResource Insomnia.Font.Text}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource Insomnia.Text.Primary}" />
+        <Setter Property="Background" Value="{DynamicResource Insomnia.Control.Fill}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Insomnia.Control.Stroke}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="Base" CornerRadius="{DynamicResource Insomnia.Radius.Control}"
+                                Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" />
+                        <Border x:Name="Overlay" CornerRadius="{DynamicResource Insomnia.Radius.Control}" Opacity="0"
+                                Background="{DynamicResource Insomnia.Control.Hover}" />
+                        <ContentPresenter x:Name="Content" Margin="{TemplateBinding Padding}" RecognizesAccessKey="True"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard Storyboard="{StaticResource Insomnia.Overlay.In}" />
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard Storyboard="{StaticResource Insomnia.Overlay.Out}" />
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="ctl:ControlPreview.State" Value="Hover">
+                            <Setter TargetName="Overlay" Property="Opacity" Value="1" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Overlay" Property="Background" Value="{DynamicResource Insomnia.Control.Pressed}" />
+                            <Setter TargetName="Content" Property="TextElement.Foreground" Value="{DynamicResource Insomnia.Text.Secondary}" />
+                        </Trigger>
+                        <Trigger Property="ctl:ControlPreview.State" Value="Pressed">
+                            <Setter TargetName="Overlay" Property="Opacity" Value="1" />
+                            <Setter TargetName="Overlay" Property="Background" Value="{DynamicResource Insomnia.Control.Pressed}" />
+                            <Setter TargetName="Content" Property="TextElement.Foreground" Value="{DynamicResource Insomnia.Text.Secondary}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Overlay" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="Content" Property="TextElement.Foreground" Value="{DynamicResource Insomnia.Text.Disabled}" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Chip selecionado: fundo de acento, texto OnAccent. Hover/pressionado como no botão de
+         acento do Fluent: o acento fica 90 % / 80 % opaco. -->
+    <Style x:Key="Insomnia.Chip.Selected" TargetType="Button" BasedOn="{StaticResource Insomnia.Chip}">
+        <Setter Property="Foreground" Value="{DynamicResource Insomnia.OnAccent}" />
+        <Setter Property="Background" Value="{DynamicResource Insomnia.Accent}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Insomnia.Accent}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="Base" CornerRadius="{DynamicResource Insomnia.Radius.Control}"
+                                Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" />
+                        <ContentPresenter x:Name="Content" Margin="{TemplateBinding Padding}" RecognizesAccessKey="True"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Base" Property="Opacity" Value="0.9" />
+                        </Trigger>
+                        <Trigger Property="ctl:ControlPreview.State" Value="Hover">
+                            <Setter TargetName="Base" Property="Opacity" Value="0.9" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Base" Property="Opacity" Value="0.8" />
+                            <Setter TargetName="Content" Property="Opacity" Value="0.8" />
+                        </Trigger>
+                        <Trigger Property="ctl:ControlPreview.State" Value="Pressed">
+                            <Setter TargetName="Base" Property="Opacity" Value="0.8" />
+                            <Setter TargetName="Content" Property="Opacity" Value="0.8" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Base" Property="Opacity" Value="1" />
+                            <Setter TargetName="Base" Property="Background" Value="{DynamicResource Insomnia.Text.Disabled}" />
+                            <Setter TargetName="Base" Property="BorderBrush" Value="Transparent" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- IconButton: 32×32, glifo 16 da fonte de ícones, fundo transparente, hover Control.Hover.
+         O glifo vai no Content (ex.: Content="{x:Static theme:Glyphs.Settings}"). -->
+    <Style x:Key="Insomnia.IconButton" TargetType="Button">
+        <Setter Property="Width" Value="32" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FontFamily" Value="{DynamicResource Insomnia.Font.Icons}" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="Foreground" Value="{DynamicResource Insomnia.Text.Primary}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="Base" CornerRadius="{DynamicResource Insomnia.Radius.Control}"
+                                Background="{TemplateBinding Background}" />
+                        <Border x:Name="Overlay" CornerRadius="{DynamicResource Insomnia.Radius.Control}" Opacity="0"
+                                Background="{DynamicResource Insomnia.Control.Hover}" />
+                        <ContentPresenter x:Name="Content" Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard Storyboard="{StaticResource Insomnia.Overlay.In}" />
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard Storyboard="{StaticResource Insomnia.Overlay.Out}" />
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="ctl:ControlPreview.State" Value="Hover">
+                            <Setter TargetName="Overlay" Property="Opacity" Value="1" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Overlay" Property="Background" Value="{DynamicResource Insomnia.Control.Pressed}" />
+                            <Setter TargetName="Content" Property="TextElement.Foreground" Value="{DynamicResource Insomnia.Text.Secondary}" />
+                        </Trigger>
+                        <Trigger Property="ctl:ControlPreview.State" Value="Pressed">
+                            <Setter TargetName="Overlay" Property="Opacity" Value="1" />
+                            <Setter TargetName="Overlay" Property="Background" Value="{DynamicResource Insomnia.Control.Pressed}" />
+                            <Setter TargetName="Content" Property="TextElement.Foreground" Value="{DynamicResource Insomnia.Text.Secondary}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Overlay" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="Content" Property="TextElement.Foreground" Value="{DynamicResource Insomnia.Text.Disabled}" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- InfoBar (§3.5): 48 mín, raio 4, glifo Warning 16 na cor do estado, texto Body.
+         Tag = NoticeKind (Caution — padrão — ou Critical). O link de ação vai no Content. -->
+    <Style x:Key="Insomnia.InfoBar" TargetType="ContentControl">
+        <Setter Property="MinHeight" Value="48" />
+        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="FontFamily" Value="{DynamicResource Insomnia.Font.Text}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Foreground" Value="{DynamicResource Insomnia.Text.Primary}" />
+        <Setter Property="Background" Value="{DynamicResource Insomnia.Caution.Bg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Insomnia.Card.Stroke}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ContentControl">
+                    <Border x:Name="Root" MinHeight="{TemplateBinding MinHeight}" Padding="{TemplateBinding Padding}"
+                            CornerRadius="{DynamicResource Insomnia.Radius.Control}" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="Glyph" Text="{x:Static theme:Glyphs.Warning}" FontFamily="{DynamicResource Insomnia.Font.Icons}"
+                                       FontSize="16" FontWeight="Normal" Margin="0,0,12,0" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource Insomnia.Caution}" />
+                            <ContentPresenter Grid.Column="1"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <!-- Gatilho de template avalia o binding no próprio controle: Self = o InfoBar
+                             (TemplatedParent seria o pai DELE e nunca casaria). DataTrigger, e não
+                             Trigger, porque converte "Critical" para o tipo do Tag (enum ou string). -->
+                        <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="Critical">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Insomnia.Critical.Bg}" />
+                            <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource Insomnia.Critical}" />
+                        </DataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- NavItem (§3.7): ListBoxItem de 36, glifo + Body; selecionado = fundo Control.Hover e
+         indicador de acento 3×16 à esquerda. -->
+    <Style x:Key="Insomnia.NavItem" TargetType="ListBoxItem">
+        <Setter Property="Height" Value="36" />
+        <Setter Property="Margin" Value="0,1" />
+        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="FontFamily" Value="{DynamicResource Insomnia.Font.Text}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Foreground" Value="{DynamicResource Insomnia.Text.Primary}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Grid>
+                        <Border x:Name="Base" CornerRadius="{DynamicResource Insomnia.Radius.Control}"
+                                Background="{TemplateBinding Background}" />
+                        <Border x:Name="Overlay" CornerRadius="{DynamicResource Insomnia.Radius.Control}" Opacity="0"
+                                Background="{DynamicResource Insomnia.Control.Hover}" />
+                        <Border x:Name="Indicator" Width="3" Height="16" CornerRadius="1.5" HorizontalAlignment="Left"
+                                VerticalAlignment="Center" Visibility="Collapsed" Background="{DynamicResource Insomnia.Accent}" />
+                        <ContentPresenter x:Name="Content" Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Base" Property="Background" Value="{DynamicResource Insomnia.Control.Hover}" />
+                            <Setter TargetName="Indicator" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard Storyboard="{StaticResource Insomnia.Overlay.In}" />
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard Storyboard="{StaticResource Insomnia.Overlay.Out}" />
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="ctl:ControlPreview.State" Value="Hover">
+                            <Setter TargetName="Overlay" Property="Opacity" Value="1" />
+                        </Trigger>
+                        <Trigger Property="ctl:ControlPreview.State" Value="Pressed">
+                            <Setter TargetName="Overlay" Property="Opacity" Value="1" />
+                            <Setter TargetName="Overlay" Property="Background" Value="{DynamicResource Insomnia.Control.Pressed}" />
+                            <Setter TargetName="Content" Property="TextElement.Foreground" Value="{DynamicResource Insomnia.Text.Secondary}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Overlay" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="Content" Property="TextElement.Foreground" Value="{DynamicResource Insomnia.Text.Disabled}" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Cartão de configuração (§3.7): 64 mín, raio 4, Card/Card.Stroke. O layout de dentro
+         (glifo 20, título + descrição, controle à direita) é da página. -->
+    <Style x:Key="Insomnia.SettingCard" TargetType="ContentControl">
+        <Setter Property="MinHeight" Value="64" />
+        <Setter Property="Padding" Value="16,10" />
+        <Setter Property="FontFamily" Value="{DynamicResource Insomnia.Font.Text}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Foreground" Value="{DynamicResource Insomnia.Text.Primary}" />
+        <Setter Property="Background" Value="{DynamicResource Insomnia.Card}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Insomnia.Card.Stroke}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ContentControl">
+                    <Border MinHeight="{TemplateBinding MinHeight}" Padding="{TemplateBinding Padding}"
+                            CornerRadius="{DynamicResource Insomnia.Radius.Control}" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource Insomnia.Text.Disabled}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Alça do painel (§3.5): 36×4, raio 2, Control.StrongFill. A área de toque (360×24) é de
+         quem a usa. -->
+    <Style x:Key="Insomnia.DragHandle" TargetType="Border">
+        <Setter Property="Width" Value="36" />
+        <Setter Property="Height" Value="4" />
+        <Setter Property="CornerRadius" Value="2" />
+        <Setter Property="Background" Value="{DynamicResource Insomnia.Control.StrongFill}" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+
+    <!-- Campo de texto Fluent: 32 de altura, raio 4, traço inferior Control.StrongFill que vira
+         2 epx de acento com foco. Placeholder pelo Tag (some quando há texto). -->
+    <Style x:Key="Insomnia.TextField" TargetType="TextBox">
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Padding" Value="10,0" />
+        <Setter Property="FontFamily" Value="{DynamicResource Insomnia.Font.Text}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Foreground" Value="{DynamicResource Insomnia.Text.Primary}" />
+        <Setter Property="CaretBrush" Value="{DynamicResource Insomnia.Text.Primary}" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource Insomnia.Accent}" />
+        <Setter Property="Background" Value="{DynamicResource Insomnia.Control.Fill}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Insomnia.Control.Stroke}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Grid>
+                        <Border x:Name="Base" CornerRadius="{DynamicResource Insomnia.Radius.Control}"
+                                Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" />
+                        <Border x:Name="Overlay" CornerRadius="{DynamicResource Insomnia.Radius.Control}" Opacity="0"
+                                Background="{DynamicResource Insomnia.Control.Hover}" />
+                        <Border x:Name="Underline" Height="1" Margin="2,0" VerticalAlignment="Bottom"
+                                Background="{DynamicResource Insomnia.Control.StrongFill}" />
+                        <TextBlock x:Name="Placeholder" Margin="{TemplateBinding Padding}" Padding="2,0,0,0"
+                                   VerticalAlignment="{TemplateBinding VerticalContentAlignment}" IsHitTestVisible="False"
+                                   Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                   Foreground="{DynamicResource Insomnia.Text.Tertiary}" Visibility="Collapsed" />
+                        <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" Focusable="False"
+                                      HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Text" Value="">
+                            <Setter TargetName="Placeholder" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard Storyboard="{StaticResource Insomnia.Overlay.In}" />
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard Storyboard="{StaticResource Insomnia.Overlay.Out}" />
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="ctl:ControlPreview.State" Value="Hover">
+                            <Setter TargetName="Overlay" Property="Opacity" Value="1" />
+                        </Trigger>
+                        <!-- Com foco (ou "pressionado" na galeria): sem camada de hover, traço de acento. -->
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Overlay" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="Underline" Property="Height" Value="2" />
+                            <Setter TargetName="Underline" Property="Background" Value="{DynamicResource Insomnia.Accent}" />
+                        </Trigger>
+                        <Trigger Property="ctl:ControlPreview.State" Value="Pressed">
+                            <Setter TargetName="Overlay" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="Underline" Property="Height" Value="2" />
+                            <Setter TargetName="Underline" Property="Background" Value="{DynamicResource Insomnia.Accent}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Overlay" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="Underline" Property="Background" Value="{DynamicResource Insomnia.Control.Stroke}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Insomnia.Text.Disabled}" />
+                            <Setter TargetName="Placeholder" Property="Foreground" Value="{DynamicResource Insomnia.Text.Disabled}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

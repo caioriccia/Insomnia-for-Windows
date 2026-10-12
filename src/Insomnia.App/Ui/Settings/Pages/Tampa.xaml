@@ -1,0 +1,71 @@
+<!--
+  Página Tampa (desenho-ui §3.7; textos da maquete aprovada): apagar a tela, lista de
+  congelados, congelar todos (+ "Congelaria agora: …"), Docker, mutar, Economia de energia.
+  DataContext = SettingsModel.
+-->
+<UserControl x:Class="Insomnia.App.Ui.Settings.Pages.TampaPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:s="clr-namespace:Insomnia.App.Ui.Settings"
+             xmlns:theme="clr-namespace:Insomnia.App.Ui.Theme"
+             Focusable="False">
+    <UserControl.Resources>
+        <ResourceDictionary Source="/Insomnia;component/Ui/Settings/SettingsStyles.xaml" />
+    </UserControl.Resources>
+
+    <StackPanel>
+        <s:SettingRow Glyph="{x:Static theme:Glyphs.Display}" Title="Apagar a tela ao fechar a tampa"
+                      Description="Monitores externos também apagam">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Settings.ToggleLabel}" Text="{Binding DarkenDisplay, Converter={StaticResource Settings.OnOff}}" />
+                <CheckBox Style="{DynamicResource Insomnia.ToggleSwitch}" IsChecked="{Binding DarkenDisplay}"
+                          AutomationProperties.Name="Apagar a tela ao fechar a tampa" />
+            </StackPanel>
+        </s:SettingRow>
+
+        <s:SettingRow Glyph="{x:Static theme:Glyphs.Snowflake}" Title="Congelar enquanto a tampa estiver fechada"
+                      Description="Apps pausados e retomados quando a tampa abre">
+            <s:SettingRow.Body>
+                <s:AppListEditor x:Name="FreezeEditor" ItemsSource="{Binding FreezeList}" />
+            </s:SettingRow.Body>
+        </s:SettingRow>
+
+        <s:SettingRow Glyph="{x:Static theme:Glyphs.OpenPane}" Title="Congelar também os outros apps com janela"
+                      Description="{Binding WouldFreezeText}">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Settings.ToggleLabel}" Text="{Binding FreezeAll, Converter={StaticResource Settings.OnOff}}" />
+                <CheckBox Style="{DynamicResource Insomnia.ToggleSwitch}" IsChecked="{Binding FreezeAll}"
+                          AutomationProperties.Name="Congelar também os outros apps com janela" />
+            </StackPanel>
+        </s:SettingRow>
+
+        <s:SettingRow Glyph="{x:Static theme:Glyphs.Docker}" Title="Pausar o Docker Desktop quando ocioso"
+                      Description="Confere duas vezes antes de pausar; o WSL2 continua">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Settings.ToggleLabel}" Text="{Binding DockerRule, Converter={StaticResource Settings.OnOff}}" />
+                <CheckBox Style="{DynamicResource Insomnia.ToggleSwitch}" IsChecked="{Binding DockerRule}"
+                          AutomationProperties.Name="Pausar o Docker Desktop quando ocioso" />
+            </StackPanel>
+        </s:SettingRow>
+
+        <s:SettingRow Glyph="{x:Static theme:Glyphs.Mute}" Title="Mutar o áudio ao fechar a tampa">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Settings.ToggleLabel}" Text="{Binding Mute, Converter={StaticResource Settings.OnOff}}" />
+                <CheckBox Style="{DynamicResource Insomnia.ToggleSwitch}" IsChecked="{Binding Mute}"
+                          AutomationProperties.Name="Mutar o áudio ao fechar a tampa" />
+            </StackPanel>
+        </s:SettingRow>
+
+        <s:SettingRow Glyph="{x:Static theme:Glyphs.Battery}" Title="Ligar a Economia de energia com a tampa fechada"
+                      Description="Só na bateria">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Settings.ToggleLabel}" Text="{Binding EnergySaver, Converter={StaticResource Settings.OnOff}}" />
+                <CheckBox Style="{DynamicResource Insomnia.ToggleSwitch}" IsChecked="{Binding EnergySaver}"
+                          AutomationProperties.Name="Ligar a Economia de energia com a tampa fechada" />
+            </StackPanel>
+        </s:SettingRow>
+
+        <TextBlock Style="{StaticResource Settings.Note}"
+                   Text="Nunca são congelados: o próprio Insomnia, o Windows, navegadores, terminais, editores, apps de agentes e LLM, reuniões, VPN e gerenciadores de senha, WSL e tudo da aba Agentes. Um app posto na lista acima é congelado mesmo se for protegido, menos os da aba Agentes." />
+    </StackPanel>
+</UserControl>

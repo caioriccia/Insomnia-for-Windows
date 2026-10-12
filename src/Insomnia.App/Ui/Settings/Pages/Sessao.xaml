@@ -1,0 +1,70 @@
+<!--
+  Página Sessão (desenho-ui §3.7): presets em chips removíveis (o padrão em acento) + campo para
+  adicionar, preset padrão num ComboBox e a sessão máxima, somente leitura. DataContext =
+  SettingsModel (herdado da janela).
+-->
+<UserControl x:Class="Insomnia.App.Ui.Settings.Pages.SessaoPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:s="clr-namespace:Insomnia.App.Ui.Settings"
+             xmlns:theme="clr-namespace:Insomnia.App.Ui.Theme"
+             Focusable="False">
+    <UserControl.Resources>
+        <ResourceDictionary Source="/Insomnia;component/Ui/Settings/SettingsStyles.xaml" />
+    </UserControl.Resources>
+
+    <StackPanel>
+        <s:SettingRow Glyph="{x:Static theme:Glyphs.Clock}" Title="Durações oferecidas"
+                      Description="Aparecem como chips no painel; o padrão fica em destaque.">
+            <s:SettingRow.Body>
+                <StackPanel>
+                    <ItemsControl x:Name="PresetChips" Focusable="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border x:Name="Chip" Style="{StaticResource Settings.TagChip}">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock x:Name="ChipText" Text="{Binding Chip}" VerticalAlignment="Center" />
+                                        <Button x:Name="ChipRemove" Style="{StaticResource Settings.TagRemove}"
+                                                Content="{x:Static theme:Glyphs.Dismiss}" Tag="{Binding Seconds}"
+                                                IsEnabled="{Binding CanRemove}" Click="OnRemovePreset"
+                                                AutomationProperties.Name="{Binding Chip, StringFormat='Remover {0}'}" />
+                                    </StackPanel>
+                                </Border>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsDefault}" Value="True">
+                                        <Setter TargetName="Chip" Property="Background" Value="{DynamicResource Insomnia.Accent}" />
+                                        <Setter TargetName="Chip" Property="BorderBrush" Value="{DynamicResource Insomnia.Accent}" />
+                                        <Setter TargetName="ChipText" Property="Foreground" Value="{DynamicResource Insomnia.OnAccent}" />
+                                        <Setter TargetName="ChipRemove" Property="Foreground" Value="{DynamicResource Insomnia.OnAccent}" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox x:Name="NewPreset" Style="{DynamicResource Insomnia.TextField}" Width="240"
+                                 Tag="Nova duração (ex.: 45, 1h30m, 3d)" KeyDown="OnNewPresetKeyDown"
+                                 Text="{Binding NewPresetText, UpdateSourceTrigger=PropertyChanged}"
+                                 AutomationProperties.Name="Nova duração" />
+                        <Button Content="Adicionar" MinHeight="32" Margin="8,0,0,0" Padding="12,0"
+                                IsEnabled="{Binding CanAddPreset}" Click="OnAddPreset" />
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource Settings.Error}" Text="{Binding PresetError}" />
+                </StackPanel>
+            </s:SettingRow.Body>
+        </s:SettingRow>
+
+        <s:SettingRow Glyph="{x:Static theme:Glyphs.Play}" Title="Duração padrão"
+                      Description="Enter com o campo vazio no painel e &quot;Iniciar sessão&quot; no menu da bandeja usam esta.">
+            <ComboBox x:Name="DefaultPreset" Width="160" MinHeight="32" DisplayMemberPath="Chip"
+                      SelectionChanged="OnDefaultChanged" AutomationProperties.Name="Duração padrão" />
+        </s:SettingRow>
+
+        <TextBlock Style="{StaticResource Settings.Note}" Text="{Binding MaxDurationText}" />
+    </StackPanel>
+</UserControl>
