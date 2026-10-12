@@ -1,11 +1,11 @@
-using System.Runtime.ExceptionServices;
 using Insomnia.App.Ui.Controls;
 
 namespace Insomnia.App.Tests.Ui.Visual;
 
 // Os estilos do §5.6 carregam do assembly e têm as chaves e os tipos congelados. Tudo roda
-// num thread STA próprio, sem Application e sem mostrar janela (invariante 3 do pacote):
+// no thread STA do App de teste (AppWpfHost), sem mostrar janela (invariante 3 do pacote):
 // o WPF só exige STA para criar os objetos, não para exibi-los.
+[Collection(Insomnia.App.Tests.Ui.Fumaca.WpfCollection.Nome)]
 public class ControlsDictionaryTests
 {
     private static readonly Uri ControlsUri = new("/Insomnia;component/Ui/Controls/Controls.xaml", UriKind.Relative);
@@ -167,22 +167,9 @@ public class ControlsDictionaryTests
     }
 }
 
-// Roda a ação num thread STA novo e devolve a exceção (com o stack original) ao xUnit.
+// Roda a ação no thread STA do App de teste (um só por processo: ver AppWpfHost) e devolve a
+// exceção (com o stack original) ao xUnit.
 internal static class Sta
 {
-    public static void Run(Action action)
-    {
-        ExceptionDispatchInfo? failure = null;
-        var thread = new Thread(() =>
-        {
-            try { action(); }
-            catch (Exception ex) { failure = ExceptionDispatchInfo.Capture(ex); }
-            finally { System.Windows.Threading.Dispatcher.CurrentDispatcher.InvokeShutdown(); }
-        });
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.IsBackground = true;
-        thread.Start();
-        if (!thread.Join(TimeSpan.FromSeconds(30))) throw new TimeoutException("thread STA não terminou em 30 s");
-        failure?.Throw();
-    }
+    public static void Run(Action action) => Insomnia.App.Tests.Ui.Fumaca.AppWpfHost.Run(_ => action());
 }

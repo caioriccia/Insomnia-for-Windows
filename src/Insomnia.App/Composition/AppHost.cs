@@ -88,7 +88,7 @@ public sealed class AppHost : ISessionFacade, IDisposable
     private readonly ISettingsHost _settings;
     private readonly IShell _shell;
     private readonly TrayController _tray;
-    private readonly CancellationTokenSource _shutdown = new();
+    private readonly ShutdownSignal _shutdown = new();
 
     private volatile Journal? _journal;          // último diário lido (só para exibir)
     private volatile WifiReading _wifiReading = new(null, null);   // última leitura (só para exibir)
@@ -97,6 +97,7 @@ public sealed class AppHost : ISessionFacade, IDisposable
     private int _exiting;
     private bool _started;
     private volatile bool _disposed;
+    private int _disposing;
 
     public AppHost()
     {
@@ -455,17 +456,19 @@ public sealed class AppHost : ISessionFacade, IDisposable
 
     // ------------------------------------------------------------------ fim
 
+    /// Idempotente e sem exceção: o fechamento pode chegar por mais de um caminho (fim do laço do
+    /// WPF, using do Program) e nada aqui pode derrubar a saída.
     public void Dispose()
     {
-        if (_disposed) return;
+        if (Interlocked.Exchange(ref _disposing, 1) == 1) return;
         _disposed = true;
         _tick.Stop();
         _shutdown.Cancel();
         Try(_tray.Dispose);
         Try(_shell.Dispose);
         Try(_settings.Dispose);
-        Notifier.Detach();
-        _reminder.Dispose();
+        Try(Notifier.Detach);
+        Try(_reminder.Dispose);
         Try(Failover.Stop);
         Try(_floors.Stop);
         Try(_lidWatcher.Stop);
@@ -474,7 +477,7 @@ public sealed class AppHost : ISessionFacade, IDisposable
         Try(() => _audioOwner?.Dispose());
         Try(_wifi.Dispose);
         Try(_sleepGuard.Dispose);
-        _powerWindow.Dispose();
+        Try(_powerWindow.Dispose);
         _shutdown.Dispose();
     }
 

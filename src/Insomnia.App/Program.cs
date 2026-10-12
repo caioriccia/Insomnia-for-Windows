@@ -40,10 +40,21 @@ public static class Program
         catch (Exception ex)
         {
             // Última rede: o motivo fica no log em vez de sumir com o processo.
-            NewLog().Error($"falha fatal ({ex.GetType().Name}): {ex.Message}");
+            NewLog().Error(FatalMessage(ex));
             return 1;
         }
     }
+
+    /// Linha do log para uma falha fatal: a mesma frase de sempre (tipo e mensagem) seguida do
+    /// ToString() da exceção, que traz o stack trace e as exceções internas. Só a mensagem não diz
+    /// ONDE o app caiu (foi o que escondeu a causa de um app que não abria). O FileLog junta as
+    /// linhas em uma só.
+    public static string FatalMessage(Exception ex) =>
+        $"falha fatal ({ex.GetType().Name}): {ex.Message}{Environment.NewLine}{ex}";
+
+    /// Idem para erros que o app engole e segue (callbacks do WinForms e do WPF).
+    public static string UiErrorMessage(Exception ex) =>
+        $"erro na UI: {ex.GetType().Name}: {ex.Message}{Environment.NewLine}{ex}";
 
     /// O primeiro argumento decide o modo (sem diferenciar caixa). --backstop só aceita --force
     /// depois; --remover-backstop não aceita nada; --diagnostico repassa o resto.
@@ -83,10 +94,10 @@ public static class Program
         var app = new App();
         using var host = new AppHost();
         // Erros nos callbacks do WinForms (NotifyIcon) e do WPF: ficam no log, o app segue.
-        System.Windows.Forms.Application.ThreadException += (_, e) => host.Log.Error($"erro na UI: {e.Exception.GetType().Name}: {e.Exception.Message}");
+        System.Windows.Forms.Application.ThreadException += (_, e) => host.Log.Error(UiErrorMessage(e.Exception));
         app.DispatcherUnhandledException += (_, e) =>
         {
-            host.Log.Error($"erro na UI: {e.Exception.GetType().Name}: {e.Exception.Message}");
+            host.Log.Error(UiErrorMessage(e.Exception));
             e.Handled = true;
         };
         host.Exited += app.Shutdown;

@@ -34,9 +34,17 @@ public partial class App : Application
     {
         foreach (var (token, fluent) in AccentAliases)
         {
-            if (TryFindResource(fluent) is System.Windows.Media.Brush brush && !ReferenceEquals(Resources[token], brush))
+            if (TryFindResource(fluent) is System.Windows.Media.Brush brush && !ReferenceEquals(TokenValue(token), brush))
                 Resources[token] = brush;
         }
+    }
+
+    /// O pincel que está no token agora; um token cuja reserva não consegue ser avaliada conta como
+    /// "nenhum" (vai ser trocado pelo Fluent), em vez de derrubar a abertura do app.
+    private object? TokenValue(string token)
+    {
+        try { return Resources[token]; }
+        catch (Exception) { return null; }   // InvalidOperationException ou XamlParseException, conforme o caminho
     }
 
     /// Pode chegar de outro thread (SystemEvents): tudo acontece no Dispatcher.

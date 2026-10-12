@@ -22,9 +22,12 @@
          AccentTextFillColorPrimary (o tom muda com o tema: Dark1/Dark2 no claro, Light2/Light3
          no escuro), só o pincel. Com o App rodando, App.SyncAccentAliases põe por cima destas
          duas chaves o próprio pincel Fluent e o troca quando o tema muda; o valor daqui é só
-         a reserva (acento cru do sistema) para quem carregar o dicionário sem o App. -->
-    <SolidColorBrush x:Key="Insomnia.Accent" Color="{DynamicResource SystemAccentColor}" />
-    <SolidColorBrush x:Key="Insomnia.Accent.Text" Color="{DynamicResource SystemAccentColor}" />
+         a reserva (acento cru do sistema) para quem carregar o dicionário sem o App. A reserva usa
+         SystemColors.AccentColorKey e NÃO a chave "SystemAccentColor" do Fluent: no dicionário Fluent
+         essa chave guarda uma expressão (outro DynamicResource), e apontar uma Color para ela lança
+         "ResourceReferenceExpression não é um valor válido para Color" — o app não abria. -->
+    <SolidColorBrush x:Key="Insomnia.Accent" Color="{DynamicResource {x:Static SystemColors.AccentColorKey}}" />
+    <SolidColorBrush x:Key="Insomnia.Accent.Text" Color="{DynamicResource {x:Static SystemColors.AccentColorKey}}" />
     <SolidColorBrush x:Key="Insomnia.OnAccent" Color="{DynamicResource TextOnAccentFillColorPrimary}" />
 
     <!-- Superfícies -->
