@@ -1,252 +1,329 @@
-# Insomnia para Windows
+# Insomnia for Windows
 
-Porte para Windows 11 do Insomnia (app de barra de menus do macOS). Fica na bandeja do
-sistema e mantém o notebook **acordado por uma sessão com hora de fim, inclusive de tampa
-fechada**. C# / .NET 10 / WPF (tema Fluent do Windows 11; o ícone da bandeja é o
-`NotifyIcon` do WinForms), sem administrador.
+Keep your Windows laptop awake — even with the lid closed — for a session with an end time.
 
-## O que ele faz
+> **Unofficial Windows port of [Insomnia](https://github.com/krishhgg/Insomnia) by Krish Garg** (MIT License).
+> All credit for the idea, design and recovery model goes to the original macOS app. This
+> port was written from scratch in C# and reuses the original's design, behaviour, recovery
+> model and wording. It is not affiliated with or endorsed by the original author.
 
-- **Sessão com hora de fim**: presets (30 min a 3 dias) ou duração livre (`1h30m`, `3d`,
-  `45`); contagem numa pílula no topo da tela (`3h 42m`, `4m 59s`) e no tooltip da
-  bandeja; `+15 min`, `+1 h`, `+4 h`; encerrar **segurando** o botão (0,6 s). Lembrete 5
-  minutos antes do fim.
-- **Tampa fechada sem dormir**: durante a sessão, a ação da tampa (`LIDACTION`) do plano de
-  energia ativo vai para "nada" em AC e na bateria, e o app segura um pedido de energia
-  (`PowerSetRequest` SystemRequired + ExecutionRequired) que morre junto com ele.
-- **Ao fechar a tampa** (cada uma desligável em Configurações > Tampa): apaga o monitor,
-  muta a saída de áudio padrão, congela os apps da lista (ou todos os que têm janela, fora
-  os protegidos e a lista de agentes), liga a Economia de energia e, opcionalmente, pausa o
-  Docker Desktop se ele estiver ocioso. Ao abrir a tampa, tudo volta.
-- **Pisos de bateria**: liga a Economia de energia abaixo de N% e encerra a sessão abaixo de
-  M% (0 desliga o fim por bateria).
-- **Hotspot de reserva**: se o Wi-Fi cair durante a sessão, tenta conectar ao perfil Wi-Fi
-  salvo do celular (5 s, depois 5/10/20/30 s, sem desistir); quedas vão para
-  `Logs\handoffs.log`.
-- **Navegadores**: avisa quando Chrome, Edge ou Brave rodam sem
-  `--disable-backgrounding-occluded-windows --disable-renderer-backgrounding` e oferece
-  fechar e relançar com as flags, preservando o perfil.
+> **Use a stable, well-ventilated surface, not a closed bag.** Insomnia is experimental.
+> Recovery can fail, and a running timer is not a safety guarantee.
 
-### Recuperação (o que impede o notebook de ficar sem dormir para sempre)
+A C# / .NET 10 tray app: WPF (Windows 11 Fluent theme) for the UI, WinForms `NotifyIcon`
+for the tray icon. No administrator rights needed. The UI is currently in Brazilian
+Portuguese; UI strings are quoted as they appear in the app.
 
-Toda mudança que sobrevive ao app (`LIDACTION`, Economia de energia, apps congelados, mudo)
-é escrita **antes** num diário (`%LOCALAPPDATA%\Insomnia\state.json`). Uma tarefa do
-Agendador do usuário, **`Insomnia Backstop`**, roda `Insomnia.exe --backstop` a cada
-minuto (inclusive na bateria): se não há sessão válida e o diário está sujo, ela desfaz
-tudo. Assim, matar o app, travar ou reiniciar no meio de uma sessão não deixa a tampa
-desarmada além do fim da sessão. Diário ilegível nunca é sobrescrito: fica como evidência e
-bloqueia novas mudanças até alguém olhar.
+## What it does
 
-## Interface
+- **Timed session**: presets (30 min to 3 days) or a free duration (`1h30m`, `3d`, `45`).
+  The countdown shows in a pill at the top of the screen (`3h 42m`, `4m 59s`) and in the
+  tray tooltip. Add time with `+15 min`, `+1 h`, `+4 h`; end early by **holding** the end
+  button (0.6 s). A reminder appears 5 minutes before the end.
+- **Lid closed without sleeping**: during a session, the lid action (`LIDACTION`) of the
+  active power plan is set to "do nothing" on AC and on battery, and the app holds a power
+  request (`PowerSetRequest` SystemRequired + ExecutionRequired) that dies with the process.
+- **When the lid closes** (each action can be turned off in Settings > Tampa): turns the
+  monitor off, mutes the default audio output, freezes the apps on your list (or every app
+  with a window, except protected ones and the agent list), turns on Energy Saver, and
+  optionally pauses Docker Desktop if it is idle. Opening the lid undoes all of it.
+- **Battery floors**: turns on Energy Saver below N% and ends the session below M% (0
+  disables the battery end).
+- **Hotspot fallback**: if Wi-Fi drops during a session, it tries to connect to the saved
+  Wi-Fi profile of your phone (5 s, then 5/10/20/30 s, without giving up). Drops are
+  written to `Logs\handoffs.log`.
+- **Browsers**: warns when Chrome, Edge or Brave run without
+  `--disable-backgrounding-occluded-windows --disable-renderer-backgrounding` and offers to
+  close and relaunch them with the flags, keeping the profile.
+- **Recovery**: every change that outlives the app is journaled first, and a per-user
+  scheduled task acts as a backstop (see [How recovery works](#how-recovery-works)).
 
-Segue o visual do Windows 11 (tipografia Segoe UI Variable, glifos Segoe Fluent Icons,
-claro/escuro e cor de destaque do sistema, trocados ao vivo). Onde o Windows aceita, pílula,
-painel e menu usam Acrylic e as Configurações usam Mica; se o DWM recusar (efeitos de
-transparência desligados, alto contraste, Windows 10), a janela cai para um fundo sólido do tema — nunca fica
-preta nem invisível. Com "Efeitos de animação" desligado em Acessibilidade, nada anima.
+## Install
 
-- **Pílula**: durante uma sessão, uma pílula de 32 px de altura fica centrada no topo do
-  monitor principal com o tempo restante (`2d 4h`, `3h 42m`, `42m`, `4m 59s`, `42s`) e um
-  ponto de estado. O glifo diz o estado: olho (normal), pausa (tampa fechada), aviso em
-  âmbar (recuperação pendente), relógio em âmbar (faltam menos de 5 min) e em vermelho
-  (menos de 1 min). Sem sessão, ela some. Nunca aparece na barra de tarefas nem no Alt+Tab
-  e nunca toma o foco.
-- **Painel**: clicar na pílula, ou **arrastá-la para baixo** (48 px ou um puxão rápido),
-  abre o painel no mesmo lugar. Com sessão: contagem grande, `termina às HH:MM`, chips
-  `+15 min`/`+1 h`/`+4 h`/`Outro…`, cartão de estado (tampa, bateria, Wi-Fi, ações, última
-  queda), faixa `Tampa fechada` quando for o caso, avisos com ação (`Relançar Chrome`,
-  `Parar de esperar`) e `Segure para encerrar`. Sem sessão (aberto pela bandeja): chips dos
-  presets, campo `Outra duração (ex.: 45, 1h30m, 3d)` e **Iniciar**. Depois de iniciar, o
-  painel mostra a contagem por 1,5 s e recolhe para a pílula. Fecha com clique fora, `Esc`,
-  clique na alça de baixo ou arrastando-a para cima.
-- **Bandeja**: o ícone é um glifo monocromático (olho fechado ocioso, olho em sessão, olho
-  com selo de pausa com a tampa fechada, olho com ponto âmbar quando há aviso), branco na
-  barra escura e preto na clara; o tooltip tem a contagem. Clique esquerdo abre/fecha o
-  painel; clique direito abre o menu (sessão e estado da máquina, avisos e suas ações,
-  `Abrir painel` ou `Iniciar sessão de …`, `Configurações…`, `Sair`), no monitor do
-  cursor. Sair só existe no menu, para não sair por acidente.
-- **Configurações**: janela no estilo das Configurações do Windows 11, com navegação à
-  esquerda (Sessão, Tampa, Agentes, Bateria, Rede, App). Toda mudança grava na hora; fechar
-  só esconde a janela.
-- **Teclado**: `Esc` fecha o painel e o menu; `Enter` no campo de duração inicia (campo
-  vazio = o preset selecionado) ou estende; `Tab` percorre chips, campo, botões, links e o
-  botão de encerrar; `Espaço`/`Enter` **segurado** no botão de encerrar conta como segurar.
-  Nas Configurações, `Enter` nos campos de adicionar (preset, app, SSID) adiciona.
-- **Tela cheia**: com um jogo, vídeo em tela cheia ou apresentação em primeiro plano a
-  pílula some e volta quando ele sai. O painel aberto não é afetado.
-- **Vários monitores**: pílula, painel e Configurações ficam no monitor principal (onde
-  está a bandeja); o menu abre no monitor do cursor. Trocar o monitor principal, desconectar
-  um monitor ou mudar a escala reposiciona a pílula. A escala é por monitor (DPI
-  PerMonitorV2): a UI fica nítida ao atravessar monitores com escalas diferentes.
+### Download (recommended)
 
-## Arquivos
+1. Install the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0).
+2. Download `Insomnia.exe` from the [Releases](https://github.com/caioriccia/Insomnia-for-Windows/releases)
+   page (framework-dependent single file, win-x64).
+3. Put it somewhere permanent and run it. The installer script uses
+   `%LOCALAPPDATA%\Programs\Insomnia\`, which is a good place if you install by hand too.
 
-| O quê | Onde |
-|---|---|
-| Programa | `%LOCALAPPDATA%\Programs\Insomnia\Insomnia.exe` |
-| Config | `%APPDATA%\Insomnia\config.json` |
-| Diário, sessão, lock | `%LOCALAPPDATA%\Insomnia\` (`state.json`, `session.json`, `.recovery.lock`) |
-| Log | `%LOCALAPPDATA%\Insomnia\Logs\insomnia.log` (+ `.1`, 1 MiB) |
-| Tarefa | `Insomnia Backstop`, raiz do Agendador de Tarefas |
-| Início com o Windows | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Insomnia` |
+`Insomnia.exe` is **unsigned**, so Windows SmartScreen will warn. Click **More info**, then
+**Run anyway**.
 
-`INSOMNIA_HOME=<pasta>` relocaliza config, diário, sessão e logs para dentro de `<pasta>`
-(testes e ensaios).
+### From source
 
-## Instalar, diagnosticar, desinstalar
-
-Requer o SDK do .NET 10 para compilar e o runtime do .NET 10 Desktop para rodar.
+Requires the .NET 10 SDK.
 
 ```powershell
-cd insomnia-windows
-.\installer\instalar.ps1            # publica, copia, cria atalho e roda o diagnóstico
-.\installer\desinstalar.ps1         # desfaz tudo, remove tarefa/atalho/programa (mantém config e log)
-.\installer\desinstalar.ps1 -Purge  # idem, apagando também config, diário e logs
+git clone https://github.com/caioriccia/Insomnia-for-Windows.git
+cd Insomnia-for-Windows
+.\installer\instalar.ps1            # publishes, copies, creates a shortcut and runs the diagnostic
 ```
 
-Diagnóstico a qualquer momento (o `| Out-Host` faz o PowerShell esperar e mostrar a saída):
+### What it changes on your system
+
+No administrator rights are needed. Insomnia changes:
+
+- the lid action (`LIDACTION`) of the active power plan, only during a session;
+- the Energy Saver battery threshold (`ESBATTTHRESHOLD`), set to 100 on battery only, while
+  the lid is closed or a battery floor requires it;
+- a per-user Task Scheduler task, `Insomnia Backstop`;
+- `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Insomnia`, only if you enable
+  start with Windows.
+
+## Using it
+
+Start a session from the tray icon: left-click opens the panel, where you pick a preset or
+type a duration (`Outra duração (ex.: 45, 1h30m, 3d)`) and press **Iniciar**. During a
+session the pill shows the time left. Click the pill, or drag it down (48 px or a quick
+flick), to open the panel; there you can add time or hold `Segure para encerrar` to finish
+early. Right-click the tray icon for the menu (session and machine state, warnings and
+their actions, `Abrir painel` or `Iniciar sessão de …`, `Configurações…`, `Sair`). Quit is
+only in the menu, to avoid quitting by accident.
+
+You do not have to close the lid, and opening it does not end the session.
+
+### Interface
+
+Follows Windows 11 (Segoe UI Variable, Segoe Fluent Icons, light/dark and accent color,
+switched live). Where Windows allows, the pill, panel and menu use Acrylic and Settings
+uses Mica; if DWM refuses (transparency effects off, high contrast, Windows 10), the
+window falls back to a solid theme background and is never black or invisible. With
+"Animation effects" off in Accessibility, nothing animates.
+
+- **Pill**: 32 px tall, centered at the top of the primary monitor, with the time left
+  (`2d 4h`, `3h 42m`, `42m`, `4m 59s`, `42s`) and a state dot. The glyph shows the state:
+  eye (normal), pause (lid closed), amber warning (recovery pending), amber clock (under
+  5 min) and red (under 1 min). Hidden without a session. It never appears on the taskbar
+  or in Alt+Tab and never takes focus.
+- **Panel**: with a session: big countdown, `termina às HH:MM`, chips
+  `+15 min`/`+1 h`/`+4 h`/`Outro…`, a state card (lid, battery, Wi-Fi, actions, last
+  drop), a `Tampa fechada` strip when applicable, warnings with actions
+  (`Relançar Chrome`, `Parar de esperar`) and `Segure para encerrar`. Without a session
+  (opened from the tray): preset chips, the duration field and **Iniciar**. After starting,
+  the panel shows the countdown for 1.5 s and collapses to the pill. It closes on click
+  outside, `Esc`, a click on the bottom handle, or dragging it up.
+- **Tray**: a monochrome glyph (closed eye idle, eye in session, eye with a pause badge
+  with the lid closed, eye with an amber dot on warnings), white on a dark taskbar and
+  black on a light one; the tooltip has the countdown. The menu opens on the monitor under
+  the cursor.
+- **Settings**: Windows 11 Settings style, with navigation on the left (Sessão, Tampa,
+  Agentes, Bateria, Rede, App). Every change is saved immediately; closing only hides the
+  window.
+- **Keyboard**: `Esc` closes the panel and menu; `Enter` in the duration field starts
+  (empty field = selected preset) or extends; `Tab` walks chips, field, buttons, links and
+  the end button; **holding** `Space`/`Enter` on the end button counts as holding. In
+  Settings, `Enter` in the add fields (preset, app, SSID) adds.
+- **Fullscreen**: with a game, fullscreen video or presentation in the foreground, the
+  pill hides and returns when it leaves. An open panel is not affected.
+- **Multiple monitors**: pill, panel and Settings stay on the primary monitor (where the
+  tray is); the menu opens on the cursor's monitor. Changing the primary monitor,
+  unplugging one or changing scale repositions the pill. DPI is per monitor (PerMonitorV2).
+
+## What happens when the lid closes
+
+During a session, closing the lid does each of these (each can be turned off in
+Settings > Tampa), and opening it undoes them. The timer keeps counting while the lid is
+closed.
+
+- **The monitor turns off** (`SC_MONITORPOWER`); it wakes on open.
+- **The default audio output is muted**, and unmuted on open.
+- **Apps on your freeze list are frozen** (or every app with a window, minus protected
+  apps and the agent list, if you choose that), and resumed on open.
+- **Energy Saver turns on** (`ESBATTTHRESHOLD=100`, battery only).
+- **Docker Desktop is paused if idle.** Optional, off by default.
+
+## How recovery works
+
+Every change that outlives the app (`LIDACTION`, Energy Saver, frozen apps, mute) is
+written to a **journal** (`%LOCALAPPDATA%\Insomnia\state.json`) *before* it is made. A
+per-user Task Scheduler task, **`Insomnia Backstop`**, runs `Insomnia.exe --backstop` every
+minute (on battery too). If there is no valid session and the journal is dirty, it undoes
+everything. So killing the app, a crash or a reboot in the middle of a session does not
+leave the lid action disarmed past the session's end. An unreadable journal is never
+overwritten: it is kept as evidence and blocks new changes until someone looks at it.
+
+This is a backstop, not a guarantee. If something goes wrong,
+`Insomnia.exe --backstop --force` undoes whatever is in the journal; if the journal is
+corrupted, restore by hand with
+`powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 1`,
+`powercfg /setdcvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 1` and
+`powercfg /setactive SCHEME_CURRENT` (use your original values).
+
+### Files
+
+| What | Where |
+|---|---|
+| Program | `%LOCALAPPDATA%\Programs\Insomnia\Insomnia.exe` |
+| Config | `%APPDATA%\Insomnia\config.json` |
+| Journal, session, lock | `%LOCALAPPDATA%\Insomnia\` (`state.json`, `session.json`, `.recovery.lock`) |
+| Log | `%LOCALAPPDATA%\Insomnia\Logs\insomnia.log` (+ `.1`, 1 MiB) |
+| Task | `Insomnia Backstop`, root of Task Scheduler |
+| Start with Windows | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Insomnia` |
+
+`INSOMNIA_HOME=<folder>` relocates config, journal, session and logs into `<folder>`
+(tests and dry runs).
+
+## Differences from the macOS version
+
+| Mac | Windows | What changes |
+|---|---|---|
+| `pmset disablesleep 1` (sudo) | `LIDACTION=0` on AC and DC in the active plan + the process's `PowerSetRequest` | No sudo. Only `LIDACTION` persists and is journaled; the power request goes away when the app dies. Shows in `powercfg /requests`. |
+| sudoers | nothing | Preflight at start and in `--diagnostico`: if you cannot change the power plan (group policy), the session does not start. |
+| Saved screen/keyboard brightness | Turns the monitor off (`SC_MONITORPOWER`) on close; wakes on open | Nothing is saved; external monitors also turn off; the keyboard backlight is left out. |
+| `pmset -b lowpowermode` | `ESBATTTHRESHOLD=100`, battery only | Same. No effect on AC. |
+| SIGSTOP/SIGCONT | `NtSuspendProcess`/`NtResumeProcess`, identity by creation time + BootId | Apps are identified by exe name (`slack.exe`). Store apps may be terminated by Windows while suspended. |
+| Docker (`com.docker.docker`) | `Docker Desktop.exe` + `com.docker.backend.exe` | The WSL2 VM (`vmmemWSL`) belongs to the system and does **not** freeze; only the UI and backend pause. Optional, off by default. |
+| launchd + codesign | `Insomnia Backstop` task in the user's Task Scheduler | No code signing; "armed" = the registered task matches the expected one. |
+| Keychain + hotspot password | Wi-Fi profile saved by Windows | **The app stores no password**: connect to the hotspot once through Windows; the app only asks Windows to connect via the profile. |
+| Menu bar | Pill at the top of the screen + panel (click or drag) + tray icon with menu (right-click) | The countdown lives in the pill; the tray icon is just the state glyph. |
+| Login Items | `HKCU\...\Run` | No system approval needed. |
+
+Not ported: heat rules, tmux, App Nap, saved brightness, hotspot password in the app.
+
+## Diagnostics
+
+Run at any time (`| Out-Host` makes PowerShell wait and show the output):
 
 ```powershell
 & "$env:LOCALAPPDATA\Programs\Insomnia\Insomnia.exe" --diagnostico | Out-Host
-$LASTEXITCODE   # 0 = nada impede o app; 1 = há problema (listado no [Resumo])
+$LASTEXITCODE   # 0 = nothing blocks the app; 1 = a problem (listed under [Resumo])
 ```
 
-Ele mostra caminhos, config, sessão, diário (cada entrada), `LIDACTION` AC/DC e esquema,
-o **pré-voo de permissão** (relê e reescreve o mesmo `LIDACTION`, sob o lock de
-recuperação, para provar que você consegue mudar o plano de energia — `--sem-pre-voo`
-pula), `ESBATTTHRESHOLD`, bateria/AC, tampa, estado da tarefa do backstop
-(Armed/Missing/Different/Unknown), perfil do hotspot, navegadores e flags, e se a bandeja
-está aberta.
+It shows paths, config, session, journal (each entry), `LIDACTION` AC/DC and scheme, the
+**permission preflight** (re-reads and rewrites the same `LIDACTION`, under the recovery
+lock, to prove you can change the power plan; `--sem-pre-voo` skips it),
+`ESBATTTHRESHOLD`, battery/AC, lid, the backstop task state (Armed/Missing/Different/
+Unknown), hotspot profile, browsers and flags, and whether the tray app is running.
 
-Outros modos: `Insomnia.exe --backstop [--force]` (recuperação; `--force` age mesmo com
-sessão válida) e `Insomnia.exe --remover-backstop`.
+Other modes: `Insomnia.exe --backstop [--force]` (recovery; `--force` acts even with a
+valid session) and `Insomnia.exe --remover-backstop`.
 
-### Compilar e testar
+## Uninstall
 
 ```powershell
-dotnet build Insomnia.sln
-dotnet test Insomnia.sln
+.\installer\desinstalar.ps1         # undoes everything; removes task, shortcut and program (keeps config and log)
+.\installer\desinstalar.ps1 -Purge  # same, also deleting config, journal and logs
 ```
 
-A saída de build vai para `%LOCALAPPDATA%\InsomniaBuild\artifacts` (ver
-`Directory.Build.props`), fora do OneDrive, que trava arquivos durante a sincronização.
-Os testes nunca tocam o sistema: todo efeito está atrás de interface e os testes usam fakes.
+## Development
 
-## Diferenças em relação ao Mac
-
-| Mac | Windows | O que muda |
-|---|---|---|
-| `pmset disablesleep 1` (sudo) | `LIDACTION=0` em AC e DC no plano ativo + `PowerSetRequest` do processo | Sem sudo. Só o `LIDACTION` persiste e é diarizado; o pedido de energia some quando o app morre. Aparece em `powercfg /requests`. |
-| sudoers | nada | Pré-voo no início e no `--diagnostico`: sem permissão de mudar o plano (política de grupo), a sessão não começa. |
-| Brilho de tela/teclado salvos | Apaga o monitor (`SC_MONITORPOWER`) ao fechar; acorda ao abrir | Nada é salvo; monitores externos também apagam; teclado fica de fora. |
-| `pmset -b lowpowermode` | `ESBATTTHRESHOLD=100` só na bateria | Igual. Em AC não tem efeito. |
-| SIGSTOP/SIGCONT | `NtSuspendProcess`/`NtResumeProcess`, identidade por hora de criação + BootId | Apps são identificados pelo nome do exe (`slack.exe`). Apps da Store podem ser encerrados pelo Windows quando suspensos. |
-| Docker (`com.docker.docker`) | `Docker Desktop.exe` + `com.docker.backend.exe` | A VM do WSL2 (`vmmemWSL`) é do sistema e **não** congela; só a interface e o backend pausam. Opcional, desligado por padrão. |
-| launchd + codesign | Tarefa `Insomnia Backstop` no Agendador do usuário | Sem assinatura de código; "armado" = a tarefa registrada bate com a esperada. |
-| Keychain + senha do hotspot | Perfil Wi-Fi salvo pelo Windows | **O app não guarda senha**: conecte-se ao hotspot uma vez pelo Windows; o app só pede para conectar pelo perfil. |
-| Barra de menus | Pílula no topo da tela + painel (clique ou arrasto) + ícone da bandeja com menu (clique direito) | A contagem fica na pílula; o ícone da bandeja é só o glifo de estado. |
-| Login Items | `HKCU\...\Run` | Sem aprovação do sistema. |
-
-Fora do porte: regras de temperatura, tmux, App Nap, brilho salvo, senha do hotspot no app.
-
-## Teste no aparelho (Checkpoint 2)
-
-Nada abaixo roda em teste automatizado: é o que só o notebook prova. Antes de começar,
-anote o estado original:
+Requires the .NET 10 SDK.
 
 ```powershell
-powercfg /q SCHEME_CURRENT SUB_BUTTONS LIDACTION       # "Índice da Configuração de Energia AC/DC atual"
+dotnet build Insomnia.sln --disable-build-servers
+dotnet test Insomnia.sln --disable-build-servers
+```
+
+Build output goes to `%LOCALAPPDATA%\InsomniaBuild\artifacts` (see `Directory.Build.props`),
+outside any synced folder, since sync clients lock files during builds. Tests never touch
+the system: every effect sits behind an interface and the tests use fakes.
+
+Layout:
+
+- `src/Insomnia.Core` — core logic (net10.0)
+- `src/Insomnia.Windows` — Windows integrations (net10.0-windows)
+- `src/Insomnia.App` — WPF/WinForms app, assembly `Insomnia` (net10.0-windows)
+- `tests/` — one test project per source project
+- `installer/` — `instalar.ps1`, `desinstalar.ps1`
+
+## Manual test checklist
+
+Nothing below runs in automated tests; it is what only a real laptop proves. First, note
+the original state:
+
+```powershell
+powercfg /q SCHEME_CURRENT SUB_BUTTONS LIDACTION
 powercfg /q SCHEME_CURRENT SUB_ENERGYSAVER ESBATTTHRESHOLD
 ```
 
-Valores de `LIDACTION`: `0x0` nada, `0x1` suspender, `0x2` hibernar, `0x3` desligar.
+`LIDACTION` values: `0x0` nothing, `0x1` sleep, `0x2` hibernate, `0x3` shut down.
 
-1. **Instalar**: `.\installer\instalar.ps1`. O diagnóstico deve sair 0, com o pré-voo
-   `ok` e a tarefa `ausente (Missing)` (normal antes da primeira sessão).
-2. **Iniciar sessão** curta (ex.: 10 min) pelo painel (clique esquerdo na bandeja).
-   Conferir:
-   - a pílula com a contagem no topo da tela, o ícone da bandeja com o olho aberto e o
-     tooltip `Insomnia · … · termina HH:MM`;
-   - `powercfg /q SCHEME_CURRENT SUB_BUTTONS LIDACTION` mostra `0x0` em AC e DC;
-   - Agendador de Tarefas: `Insomnia Backstop` existe, a cada 1 minuto, "Iniciar a tarefa
-     somente se o computador estiver ligado na energia CA" **desmarcado**;
-   - `--diagnostico`: sessão `válida até`, diário `sujo` com a entrada `LIDACTION`,
+1. **Install**: `.\installer\instalar.ps1`. The diagnostic should exit 0, with preflight
+   `ok` and the task `ausente (Missing)` (normal before the first session).
+2. **Start a short session** (e.g. 10 min) from the panel (left-click the tray). Check:
+   - the pill with the countdown at the top of the screen, the tray icon with the open eye
+     and the tooltip `Insomnia · … · termina HH:MM`;
+   - `powercfg /q SCHEME_CURRENT SUB_BUTTONS LIDACTION` shows `0x0` on AC and DC;
+   - Task Scheduler: `Insomnia Backstop` exists, every 1 minute, "Start the task only if
+     the computer is on AC power" **unchecked**;
+   - `--diagnostico`: session `válida até`, journal `sujo` with the `LIDACTION` entry,
      backstop `armada (Armed)`.
-3. **Fechar a tampa** por 2–3 min (com um monitor externo ou ouvindo um áudio tocando,
-   ou deixando um download/ping rodando para ver que não parou). Ao abrir:
-   - o notebook não dormiu (o download/ping seguiu; a contagem da pílula continuou);
-   - a tela apagou ao fechar e voltou ao abrir; o som voltou ao volume de antes;
-   - apps da lista de congelados (ex.: Slack) voltaram a responder;
-   - com o carregador fora, a Economia de energia ligou com a tampa fechada e desligou
-     depois de abrir.
-4. **+tempo**: no painel, `+15 min` empurra o fim; `termina às` e o tooltip mostram o novo
-   horário.
-5. **Encerrar segurando** (`Segure para encerrar`, no painel): soltar antes de 0,6 s não
-   encerra; segurar encerra, o painel recolhe e a pílula some.
-   `LIDACTION` volta ao valor anotado; diagnóstico com diário `limpo`.
-6. **Matar o app** no meio de uma sessão curta (5 min): Gerenciador de Tarefas >
-   Insomnia > Finalizar tarefa. Até o fim da sessão o `LIDACTION` continua `0x0` (por
-   desenho). **Esperar 1–2 min depois da hora de fim** e conferir:
-   - `powercfg /q … LIDACTION` voltou ao valor anotado;
-   - `insomnia.log` tem a linha do backstop restaurando;
-   - `session.json` sumiu e o diário está limpo (`--diagnostico`).
-7. **Matar com a tampa fechada** (apps congelados e mudo): iniciar uma sessão curta
-   (5 min) com um app da lista de congelamento aberto (ex.: WhatsApp) e um áudio
-   tocando. Num PowerShell, deixar o encerramento agendado **antes** de fechar a tampa
-   (abrir a tampa desfaz as ações, então o app tem de morrer com ela fechada):
-   `Start-Sleep 30; Stop-Process -Name Insomnia -Force`. Fechar a tampa logo em seguida
-   e mantê-la fechada por ~1 min — o app morre com o app congelado suspenso e o som
-   mudo. Abrir a tampa e **não** reabrir o Insomnia.
-   **Esperar 1–2 min depois da hora de fim** e conferir: o app congelado volta a
-   responder, o áudio volta e `LIDACTION` volta ao valor anotado — tudo pelo backstop.
-8. **Reiniciar no meio da sessão**: depois do login, ao abrir o app a sessão continua
-   (se ainda válida) ou é desfeita (se expirou). Sem abrir o app, o backstop desfaz até
-   1–2 min depois do fim.
-9. **Bateria**: com o carregador fora e o piso "encerrar abaixo de" acima do percentual
-   atual, a sessão encerra sozinha e restaura tudo.
-10. **Hotspot**: configure o SSID do celular em Configurações > Rede (depois de conectar a
-    ele uma vez pelo Windows). Com a sessão ativa, desligue o roteador: em segundos o
-    notebook entra no hotspot; `Logs\handoffs.log` registra a queda.
-11. **Navegador**: com o Chrome aberto normalmente, o menu e o painel mostram o aviso de
-    que o Chrome está limitado;
-    "Relançar Chrome sem limitação" fecha e reabre com as mesmas janelas/perfil; o
-    diagnóstico passa a mostrar `sem limitação`.
-12. **Sair pela bandeja** com sessão ativa restaura tudo antes de fechar.
-13. **Interface** (o que nenhum teste automatizado vê):
-    - **Pílula ao iniciar**: abrir o app com uma sessão ainda válida (ou iniciar uma) faz a
-      pílula aparecer, com um leve deslizar, centrada no topo do monitor principal; sem
-      sessão, só o ícone da bandeja (olho fechado). A pílula não aparece na barra de
-      tarefas nem no Alt+Tab, e ficar visível não tira o foco da janela em uso.
-    - **Arrastar abre**: arrastar a pílula para baixo faz o painel crescer dela, seguindo o
-      ponteiro; soltar cedo volta, soltar além de ~48 px (ou num puxão rápido) abre. `Esc`,
-      clique fora e arrastar a alça para cima fecham.
-    - **Tampa fechada mostra a faixa**: fechar e reabrir a tampa durante a sessão; enquanto
-      fechada (com monitor externo), a pílula mostra o glifo de pausa e o painel a faixa
-      `Tampa fechada` com o que foi feito (`2 apps congelados · áudio mudo · tela apagada`).
-    - **Fim próximo muda a cor**: numa sessão de 6 min, abaixo de 5 min a pílula passa a
-      relógio e texto âmbar com segundos (`4m 59s`), o `+15 min` vira botão de destaque e
-      a sublinha mostra `faltam N min`; abaixo de 1 min, vermelho.
-    - **Aviso aparece**: com o Chrome aberto sem as flags, a pílula troca o olho pelo aviso
-      âmbar, o ícone da bandeja ganha o ponto âmbar e o painel mostra o aviso com
-      `Relançar Chrome`.
-    - **Configurações grava**: `Configurações…` no menu (ou a engrenagem do painel) abre a
-      janela; mudar um preset e um interruptor de Tampa, fechar e reabrir o app: as
-      mudanças estão em `%APPDATA%\Insomnia\config.json` e continuam lá.
-    - **Claro/escuro ao vivo**: com pílula, painel e Configurações abertos, trocar o modo em
-      Configurações do Windows > Personalização > Cores: tudo troca na hora, sem reiniciar;
-      o ícone da bandeja acompanha a cor da barra. Com "Efeitos de transparência" desligado
-      as janelas ficam com fundo sólido (nunca pretas ou invisíveis).
-    - **DPI 150 % no segundo monitor**: com um monitor externo a 150 % e o notebook a
-      100 % (ou o inverso), tornar o externo o principal: a pílula vai para ele, nítida e
-      centrada; o menu da bandeja abre no monitor do cursor e as Configurações abrem
-      nítidas. Desconectar o monitor reposiciona a pílula no que sobrou.
-    - **Tela cheia**: um vídeo em tela cheia ou apresentação faz a pílula sumir; ao sair, ela
-      volta.
-14. **Desinstalar**: `.\installer\desinstalar.ps1`. `LIDACTION` igual ao anotado, tarefa
-    `Insomnia Backstop` removida, atalho e pasta do programa removidos.
+3. **Close the lid** for 2-3 min (with an external monitor, or with audio playing, or with
+   a download/ping running to see it did not stop). On opening:
+   - the laptop did not sleep (the download/ping kept going; the pill countdown continued);
+   - the screen went off on close and back on at open; the sound returned to its previous
+     volume;
+   - apps on the freeze list (e.g. Slack) respond again;
+   - with the charger unplugged, Energy Saver turned on with the lid closed and off after
+     opening.
+4. **More time**: in the panel, `+15 min` pushes the end; `termina às` and the tooltip show
+   the new time.
+5. **End by holding** (`Segure para encerrar`, in the panel): releasing before 0.6 s does
+   not end it; holding ends it, the panel collapses and the pill disappears. `LIDACTION`
+   returns to the noted value; the diagnostic shows the journal `limpo`.
+6. **Kill the app** in the middle of a short session (5 min): Task Manager > Insomnia >
+   End task. Until the session's end, `LIDACTION` stays `0x0` (by design). **Wait 1-2 min
+   after the end time** and check:
+   - `powercfg /q … LIDACTION` is back to the noted value;
+   - `insomnia.log` has the backstop restoring line;
+   - `session.json` is gone and the journal is clean (`--diagnostico`).
+7. **Kill with the lid closed** (frozen apps and mute): start a short session (5 min) with
+   an app from the freeze list open (e.g. WhatsApp) and audio playing. In a PowerShell,
+   schedule the kill **before** closing the lid (opening the lid undoes the actions, so the
+   app has to die with it closed): `Start-Sleep 30; Stop-Process -Name Insomnia -Force`.
+   Close the lid right after and keep it closed for ~1 min; the app dies with the frozen
+   app suspended and the sound muted. Open the lid and do **not** reopen Insomnia.
+   **Wait 1-2 min after the end time** and check: the frozen app responds again, audio is
+   back and `LIDACTION` is back to the noted value, all by the backstop.
+8. **Restart in the middle of a session**: after login, opening the app continues the
+   session (if still valid) or undoes it (if expired). Without opening the app, the
+   backstop undoes it up to 1-2 min after the end.
+9. **Battery**: with the charger unplugged and the "end below" floor above the current
+   percentage, the session ends by itself and restores everything.
+10. **Hotspot**: set your phone's SSID in Settings > Rede (after connecting to it once
+    through Windows). With a session active, turn off the router: within seconds the laptop
+    joins the hotspot; `Logs\handoffs.log` records the drop.
+11. **Browser**: with Chrome open normally, the menu and panel show the warning that Chrome
+    is throttled; "Relançar Chrome sem limitação" closes and reopens it with the same
+    windows/profile; the diagnostic now shows `sem limitação`.
+12. **Quit from the tray** with a session active restores everything before closing.
+13. **Interface** (what no automated test sees):
+    - **Pill on start**: opening the app with a still-valid session (or starting one) makes
+      the pill appear, with a slight slide, centered at the top of the primary monitor;
+      without a session, only the tray icon (closed eye). The pill does not appear on the
+      taskbar or in Alt+Tab, and showing it does not take focus from the window in use.
+    - **Dragging opens**: dragging the pill down makes the panel grow out of it, following
+      the pointer; releasing early snaps back, releasing past ~48 px (or on a quick flick)
+      opens. `Esc`, click outside and dragging the handle up close it.
+    - **Lid closed shows the strip**: close and reopen the lid during a session; while
+      closed (with an external monitor), the pill shows the pause glyph and the panel shows
+      the `Tampa fechada` strip with what was done
+      (`2 apps congelados · áudio mudo · tela apagada`).
+    - **Near the end changes color**: in a 6 min session, under 5 min the pill switches to
+      a clock and amber text with seconds (`4m 59s`), `+15 min` becomes an accent button
+      and the subline shows `faltam N min`; under 1 min, red.
+    - **Warning appears**: with Chrome open without the flags, the pill swaps the eye for
+      the amber warning, the tray icon gets the amber dot and the panel shows the warning
+      with `Relançar Chrome`.
+    - **Settings saves**: `Configurações…` in the menu (or the panel's gear) opens the
+      window; change a preset and a Tampa switch, close and reopen the app: the changes are
+      in `%APPDATA%\Insomnia\config.json` and persist.
+    - **Light/dark live**: with pill, panel and Settings open, switch the mode in Windows
+      Settings > Personalization > Colors: everything switches immediately without a
+      restart; the tray icon follows the taskbar color. With "Transparency effects" off the
+      windows get a solid background (never black or invisible).
+    - **150% DPI on the second monitor**: with an external monitor at 150% and the laptop at
+      100% (or the reverse), make the external one primary: the pill moves to it, sharp and
+      centered; the tray menu opens on the cursor's monitor and Settings opens sharp.
+      Unplugging the monitor repositions the pill on the remaining one.
+    - **Fullscreen**: a fullscreen video or presentation hides the pill; on exit it returns.
+14. **Uninstall**: `.\installer\desinstalar.ps1`. `LIDACTION` equals the noted value, the
+    `Insomnia Backstop` task is removed, shortcut and program folder are removed.
 
-Se algo ficar errado depois de um teste: `Insomnia.exe --backstop --force` desfaz o que
-estiver no diário; se o diário estiver corrompido, restaure à mão com
-`powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 1`,
-`powercfg /setdcvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 1` e
-`powercfg /setactive SCHEME_CURRENT` (use os valores anotados).
+## License and credits
+
+[MIT](LICENSE). Copyright (c) 2026 Krish Garg (original macOS app,
+[krishhgg/Insomnia](https://github.com/krishhgg/Insomnia)) and Caio Riccioppo (Windows
+port). The Windows port was written with AI assistance.
